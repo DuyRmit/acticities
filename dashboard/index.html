@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Phase 0 Activity Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #000054;
+    --red: #E61E2A;
+    --gold: #FAC800;
+    --paper: #F7F7FA;
+    --ink: #1A1A2E;
+    --line: #DCDCE8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Lato', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  /* ---- Gate ---- */
+  #gate {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px;
+    text-align: center;
+  }
+  #gate h1 { font-size: 20px; margin: 0 0 4px; color: var(--navy); }
+  #gate p { margin: 0; color: #555; font-size: 14px; max-width: 320px; }
+  #gate input {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    padding: 10px 14px;
+    border: 2px solid var(--line);
+    border-radius: 6px;
+    width: 220px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+  #gate input:focus { outline: none; border-color: var(--navy); }
+  #gate button {
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  #gate button:hover { background: #1a1a70; }
+  #gateError { color: var(--red); font-size: 13px; height: 16px; }
+
+  /* ---- Dashboard ---- */
+  #dash { display: none; max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
+  header.top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 4px solid var(--gold);
+    padding-bottom: 14px;
+    margin-bottom: 28px;
+  }
+  header.top h1 { font-size: 22px; color: var(--navy); margin: 0; }
+  header.top .updated { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #888; }
+
+  .activity-block { margin-bottom: 40px; }
+  .activity-block h2 {
+    font-size: 16px;
+    color: #fff;
+    background: var(--navy);
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+  }
+
+  .scorecards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--gold);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .card .num { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; color: var(--navy); }
+  .card .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 14px; font-size: 13px; border-bottom: 1px solid var(--line); }
+  th { background: #EFEFF6; color: var(--navy); font-weight: 700; }
+  tr:last-child td { border-bottom: none; }
+  .pct-bar { display: inline-block; height: 6px; background: var(--gold); border-radius: 3px; vertical-align: middle; margin-left: 8px; }
+
+  #empty { text-align: center; color: #888; padding: 60px 0; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h1>Phase 0 Activity Analytics</h1>
+  <p>Internal dashboard — passcode required.</p>
+  <input id="passcodeInput" type="password" placeholder="Passcode" autocomplete="off" />
+  <button id="gateBtn">View dashboard</button>
+  <div id="gateError"></div>
+</div>
+
+<div id="dash">
+  <header class="top">
+    <h1>Phase 0 Activity Analytics</h1>
+    <span class="updated" id="updatedAt"></span>
+  </header>
+  <div id="content"></div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD-IEvx56ysu5GhKlOU-a-6jD7rUiY17nM",
+    authDomain: "phase0-activity-analytics.firebaseapp.com",
+    projectId: "phase0-activity-analytics",
+  };
+
+  // SHA-256 of the passcode — plaintext isn't stored in the page source.
+  // To change the passcode: hash a new one and swap this value.
+  const PASSCODE_HASH = "df127ba385a90243e8525bdd527978ae39d255c461e36eadc4074a731cb049f5";
+
+  async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  const gate = document.getElementById("gate");
+  const dash = document.getElementById("dash");
+  const input = document.getElementById("passcodeInput");
+  const gateError = document.getElementById("gateError");
+
+  async function tryUnlock() {
+    const hash = await sha256Hex(input.value.trim());
+    if (hash === PASSCODE_HASH) {
+      sessionStorage.setItem("phase0_unlocked", "1");
+      gate.style.display = "none";
+      dash.style.display = "block";
+      loadData();
+    } else {
+      gateError.textContent = "Incorrect passcode.";
+      input.value = "";
+    }
+  }
+  document.getElementById("gateBtn").addEventListener("click", tryUnlock);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+
+  if (sessionStorage.getItem("phase0_unlocked") === "1") {
+    gate.style.display = "none";
+    dash.style.display = "block";
+    loadData();
+  }
+
+  async function loadData() {
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const content = document.getElementById("content");
+    content.innerHTML = "<div id='empty'>Loading…</div>";
+
+    const snap = await getDocs(collection(db, "phase0_events"));
+    if (snap.empty) {
+      content.innerHTML = "<div id='empty'>No events logged yet. Open the activity to generate data.</div>";
+      return;
+    }
+
+    const events = [];
+    snap.forEach(doc => events.push(doc.data()));
+    document.getElementById("updatedAt").textContent = "Loaded " + new Date().toLocaleString();
+
+    // Group by activity_id
+    const byActivity = {};
+    events.forEach(e => {
+      const id = e.activity_id || "(unknown)";
+      (byActivity[id] = byActivity[id] || []).push(e);
+    });
+
+    content.innerHTML = "";
+    Object.keys(byActivity).sort().forEach(activityId => {
+      const evs = byActivity[activityId];
+      const opens = evs.filter(e => e.event_type === "open");
+      const closes = evs.filter(e => e.event_type === "close");
+      const interactions = evs.filter(e => e.event_type === "interaction");
+      const uniqueVisitors = new Set(opens.map(e => e.anon_id)).size;
+      const avgTime = closes.length
+        ? Math.round(closes.reduce((s, e) => s + (e.seconds_since_open || 0), 0) / closes.length)
+        : null;
+
+      const breakdown = {};
+      interactions.forEach(e => {
+        const key = e.extra || "(unlabeled)";
+        breakdown[key] = (breakdown[key] || 0) + 1;
+      });
+      const maxCount = Math.max(1, ...Object.values(breakdown));
+
+      const block = document.createElement("div");
+      block.className = "activity-block";
+
+      const rows = Object.entries(breakdown)
+        .sort((a, b) => b[1] - a[1])
+        .map(([label, count]) => {
+          const widthPx = Math.round((count / maxCount) * 120);
+          return `<tr><td>${escapeHtml(label)}</td><td>${count}<span class="pct-bar" style="width:${widthPx}px"></span></td></tr>`;
+        }).join("");
+
+      block.innerHTML = `
+        <h2>${escapeHtml(activityId)}</h2>
+        <div class="scorecards">
+          <div class="card"><div class="num">${opens.length}</div><div class="label">Total visits</div></div>
+          <div class="card"><div class="num">${uniqueVisitors}</div><div class="label">Unique visitors</div></div>
+          <div class="card"><div class="num">${avgTime !== null ? avgTime + "s" : "—"}</div><div class="label">Avg time on activity</div></div>
+          <div class="card"><div class="num">${interactions.length}</div><div class="label">Total interactions</div></div>
+        </div>
+        <table>
+          <thead><tr><th>Interaction</th><th>Count</th></tr></thead>
+          <tbody>${rows || "<tr><td colspan='2'>No interactions logged yet.</td></tr>"}</tbody>
+        </table>
+      `;
+      content.appendChild(block);
+    });
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+</script>
+</body>
+</html>
