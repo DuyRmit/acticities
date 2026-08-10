@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Deploy an Activity — Phase 0</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #000054; --red: #E61E2A; --gold: #FAC800;
+    --paper: #F7F7FA; --ink: #1A1A2E; --line: #DCDCE8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Lato', sans-serif; background: var(--paper); color: var(--ink); }
+
+  #gate {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 16px; padding: 24px; text-align: center;
+  }
+  #gate h1 { font-size: 20px; margin: 0 0 4px; color: var(--navy); }
+  #gate p { margin: 0; color: #555; font-size: 14px; max-width: 320px; }
+  #gate input {
+    font-family: 'JetBrains Mono', monospace; font-size: 16px; padding: 10px 14px;
+    border: 2px solid var(--line); border-radius: 6px; width: 240px; text-align: center;
+  }
+  #gate input:focus { outline: none; border-color: var(--navy); }
+  #gate button, .primary-btn {
+    background: var(--navy); color: #fff; border: none; padding: 10px 24px;
+    border-radius: 6px; font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+  #gate button:hover, .primary-btn:hover { background: #1a1a70; }
+  .primary-btn:disabled { background: #999; cursor: not-allowed; }
+  #gateError { color: var(--red); font-size: 13px; height: 16px; }
+
+  #app { display: none; max-width: 640px; margin: 0 auto; padding: 40px 20px 60px; }
+  header.top { border-bottom: 4px solid var(--gold); padding-bottom: 14px; margin-bottom: 28px; }
+  header.top h1 { font-size: 22px; color: var(--navy); margin: 0 0 4px; }
+  header.top p { margin: 0; font-size: 13px; color: #666; }
+
+  label { display: block; font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+  .field { margin-bottom: 20px; }
+  input[type="text"] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; font-family: 'Lato', sans-serif;
+  }
+  input[type="text"]:focus { outline: none; border-color: var(--navy); }
+
+  #dropzone {
+    border: 2px dashed var(--line); border-radius: 8px; padding: 30px;
+    text-align: center; font-size: 13px; color: #777; background: #fff;
+    transition: border-color .15s, background .15s;
+  }
+  #dropzone.drag { border-color: var(--gold); background: #FFFBEE; }
+  #dropzone.has-file { border-color: var(--navy); color: var(--navy); font-weight: 700; }
+  #fileInput { display: none; }
+
+  #result {
+    margin-top: 24px; padding: 18px; border-radius: 8px; border: 1px solid var(--line);
+    background: #fff; display: none; font-size: 13px;
+  }
+  #result.ok { border-left: 4px solid var(--gold); }
+  #result.err { border-left: 4px solid var(--red); }
+  #result a { color: var(--navy); font-weight: 700; }
+  #result code { background: #EFEFF6; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  pre { background: #EFEFF6; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+  .copy-btn { font-size: 11px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--line); background: #fff; cursor: pointer; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h1>Deploy an Activity</h1>
+  <p>Internal tool for the MD team — passcode required.</p>
+  <input id="passcodeInput" type="password" placeholder="Passcode" autocomplete="off" />
+  <button id="gateBtn">Continue</button>
+  <div id="gateError"></div>
+</div>
+
+<div id="app">
+  <header class="top">
+    <h1>Deploy an Activity</h1>
+    <p>Upload a self-contained HTML activity. It'll be auto-instrumented for analytics and pushed live.</p>
+  </header>
+
+  <div class="field">
+    <label for="activityName">Activity name</label>
+    <input id="activityName" type="text" placeholder="e.g. COMM2953 Module 4 In-class" />
+  </div>
+
+  <div class="field">
+    <label>HTML file</label>
+    <div id="dropzone">Drag an .html file here, or click to browse</div>
+    <input type="file" id="fileInput" accept=".html" />
+  </div>
+
+  <button class="primary-btn" id="deployBtn" disabled>Deploy</button>
+
+  <div id="result"></div>
+</div>
+
+<script>
+  // ---- CONFIG: paste your Worker's *.workers.dev URL here after deploying it ----
+  const WORKER_URL = "REPLACE_WITH_WORKER_URL";
+
+  async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  const GATE_PASSCODE_HASH = "f6c6046177bed371c31b6003317d6f26f2e04565c6b60e81dcb440943085f3b8";
+  const gate = document.getElementById("gate");
+  const app = document.getElementById("app");
+  const gateInput = document.getElementById("passcodeInput");
+  const gateError = document.getElementById("gateError");
+  let unlockedPasscode = "";
+
+  async function tryUnlock() {
+    const value = gateInput.value.trim();
+    const hash = await sha256Hex(value);
+    if (hash === GATE_PASSCODE_HASH) {
+      unlockedPasscode = value;
+      gate.style.display = "none";
+      app.style.display = "block";
+    } else {
+      gateError.textContent = "Incorrect passcode.";
+      gateInput.value = "";
+    }
+  }
+  document.getElementById("gateBtn").addEventListener("click", tryUnlock);
+  gateInput.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+
+  // ---- File handling ----
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const activityName = document.getElementById("activityName");
+  const deployBtn = document.getElementById("deployBtn");
+  let fileContent = null;
+  let fileName = null;
+
+  dropzone.addEventListener("click", () => fileInput.click());
+  ["dragenter", "dragover"].forEach(evt =>
+    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add("drag"); })
+  );
+  ["dragleave", "drop"].forEach(evt =>
+    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove("drag"); })
+  );
+  dropzone.addEventListener("drop", e => handleFile(e.dataTransfer.files[0]));
+  fileInput.addEventListener("change", e => handleFile(e.target.files[0]));
+
+  function handleFile(file) {
+    if (!file || !file.name.endsWith(".html")) {
+      alert("Please choose an .html file.");
+      return;
+    }
+    fileName = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      fileContent = e.target.result;
+      dropzone.textContent = "✓ " + fileName;
+      dropzone.classList.add("has-file");
+      checkReady();
+    };
+    reader.readAsText(file);
+  }
+
+  activityName.addEventListener("input", checkReady);
+  function checkReady() {
+    deployBtn.disabled = !(fileContent && activityName.value.trim());
+  }
+
+  deployBtn.addEventListener("click", async () => {
+    if (WORKER_URL.includes("REPLACE_WITH")) {
+      showResult(false, "Worker URL isn't configured yet — see comment at top of the page source.");
+      return;
+    }
+    deployBtn.disabled = true;
+    deployBtn.textContent = "Deploying…";
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          passcode: unlockedPasscode,
+          activity_name: activityName.value.trim(),
+          html: fileContent,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Deploy failed");
+      showResult(true, null, data);
+    } catch (err) {
+      showResult(false, err.message);
+    } finally {
+      deployBtn.disabled = false;
+      deployBtn.textContent = "Deploy";
+    }
+  });
+
+  function showResult(ok, errMsg, data) {
+    const result = document.getElementById("result");
+    result.style.display = "block";
+    result.className = ok ? "ok" : "err";
+    if (ok) {
+      const iframe = `<iframe src="${data.live_url}" width="100%" height="600" frameborder="0" title="${activityName.value.trim()}"></iframe>`;
+      result.innerHTML = `
+        <strong>${data.updated ? "Updated" : "Deployed"}!</strong><br/>
+        Live URL: <a href="${data.live_url}" target="_blank">${data.live_url}</a><br/>
+        Dashboard: <a href="${data.dashboard_url}" target="_blank">${data.dashboard_url}</a>
+        <p>Canvas embed:</p>
+        <pre id="embedCode">${iframe.replace(/</g, "&lt;")}</pre>
+        <button class="copy-btn" id="copyBtn">Copy embed code</button>
+      `;
+      document.getElementById("copyBtn").addEventListener("click", () => {
+        navigator.clipboard.writeText(iframe);
+        document.getElementById("copyBtn").textContent = "Copied!";
+      });
+    } else {
+      result.innerHTML = `<strong>Deploy failed:</strong> ${errMsg}`;
+    }
+  }
+</script>
+</body>
+</html>
