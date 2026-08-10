@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RMIT Satellite Lab - Bento Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --rmit-navy: #000054;
+            --rmit-red: #e61e2a;
+            --rmit-gold: #fac800;
+            --glass: rgba(255, 255, 255, 0.2);
+            --bento-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background: #000; overflow: hidden; color: var(--rmit-navy); }
+        
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; z-index: 1; }
+
+        /* BENTO BOX 1: Controls (Top Left) */
+        #bento-menu {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 180px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 10;
+            box-shadow: var(--bento-shadow);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* BENTO BOX 2: Info (Bottom Right) */
+        #bento-info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 320px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            z-index: 10;
+            box-shadow: var(--bento-shadow);
+            display: none; /* Shown on interaction */
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        h1 { margin: 0 0 15px 0; font-size: 0.9rem; letter-spacing: 1px; color:white; font-weight: 700; }
+        
+        .btn-stack { display: flex; flex-direction: column; gap: 8px; }
+        button {
+            border: 1px solid rgba(0,0,0,0.1);
+            background: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: left;
+            font-weight: 700;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            color: var(--rmit-navy);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        button:hover { background: #f0f0f0; transform: translateX(5px); }
+        button.active-leo { border-left: 6px solid var(--rmit-red); }
+        button.active-meo { border-left: 6px solid var(--rmit-gold); }
+        button.active-geo { border-left: 6px solid #3b3bff; }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-label { font-size: 0.8rem; color: #ffffff; font-weight: bold; }
+        .stat-val { font-size: 1rem; font-weight: 600; color:white; }
+        .info-text { font-size: 0.85rem; line-height: 1.4; color: #ffffff; border-top: 1px solid #ddd; padding-top: 10px; }
+
+        /* Floating Satellite Labels */
+        .sat-label {
+            position: absolute;
+            padding: 4px 10px;
+            background: rgba(0, 0, 84, 0.8);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 5;
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Responsive adjustments for 600px height */
+        @media (max-height: 650px) {
+            #bento-menu { top: 10px; left: 10px; padding: 15px; width: 180px; }
+            #bento-info { bottom: 10px; right: 10px; padding: 15px; width: 280px; }
+            .info-text { font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <!-- Satellite Labels Layer -->
+    <div id="labels-container">
+        <div id="label-LEO" class="sat-label">LEO</div>
+        <div id="label-MEO" class="sat-label">MEO</div>
+        <div id="label-GEO" class="sat-label">GEO</div>
+    </div>
+
+    <!-- Bento UI -->
+    <div id="bento-menu">
+        <h1>Satellite Orbits</h1>
+        <div class="btn-stack">
+            <button onclick="focusLayer('LEO', this)" id="btn-leo">Low Earth (LEO)</button>
+            <button onclick="focusLayer('MEO', this)" id="btn-meo">Medium Earth (MEO)</button>
+            <button onclick="focusLayer('GEO', this)" id="btn-geo">Geostationary (GEO)</button>
+        </div>
+    </div>
+
+    <div id="bento-info">
+        <div class="stat-grid">
+            <div>
+                <div class="stat-label">Altitude</div>
+                <div id="info-alt" class="stat-val">-</div>
+            </div>
+            <div>
+                <div class="stat-label">Latency</div>
+                <div id="info-lat" class="stat-val">-</div>
+            </div>
+        </div>
+        <div id="info-desc" class="info-text">Select a satellite layer to see details.</div>
+    </div>
+
+    <script>
+        const data = {
+            LEO: { alt: "500-2,000km", lat: "20ms", desc: "Fast signal. Used for Starlink internet & weather imaging. Moves quickly across the sky.", color: 0xe61e2a, dist: 1.3, cam: 3.5 },
+            MEO: { alt: "20,000km", lat: "150ms", desc: "The home of GPS. One satellite covers a huge area, balancing delay and coverage.", color: 0xfac800, dist: 3.2, cam: 8 },
+            GEO: { alt: "35,786km", lat: "600ms", desc: "Stationary over the equator. Used for satellite TV. High latency due to extreme distance.", color: 0x3b3bff, dist: 6.8, cam: 16 }
+        };
+
+        let scene, camera, renderer, controls, earth, stars;
+        let sats = [];
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(12, 10, 15);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            // Lights
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+            sun.position.set(5, 10, 5);
+            scene.add(sun);
+
+            createStars();
+            createRealEarth();
+            createOrbits();
+            animate();
+        }
+
+        function createStars() {
+            const geo = new THREE.BufferGeometry();
+            const pos = [];
+            for(let i=0; i<4000; i++) {
+                pos.push((Math.random()-0.5)*1000, (Math.random()-0.5)*1000, (Math.random()-0.5)*1000);
+            }
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+            scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x888888, size: 0.8 })));
+        }
+
+        function createRealEarth() {
+            const loader = new THREE.TextureLoader();
+            // Reliable High-Res Earth Texture CDN
+            const earthTex = loader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
+            const earthGeo = new THREE.SphereGeometry(1, 64, 64);
+            const earthMat = new THREE.MeshPhongMaterial({ map: earthTex, shininess: 10 });
+            earth = new THREE.Mesh(earthGeo, earthMat);
+            scene.add(earth);
+
+            // Cloud Layer
+            const cloudTex = loader.load('https://unpkg.com/three-globe/example/img/earth-clouds.png');
+            const cloudMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(1.01, 64, 64),
+                new THREE.MeshPhongMaterial({ map: cloudTex, transparent: true, opacity: 0.4 })
+            );
+            earth.add(cloudMesh);
+        }
+
+        function createOrbits() {
+            Object.keys(data).forEach(key => {
+                const d = data[key];
+                
+                // Orbit path - Sử dụng TorusGeometry để có độ dày
+const thickness = 0.015; // Bạn có thể tăng giảm con số này để chỉnh độ dày (ví dụ: 0.02)
+const orbitGeo = new THREE.TorusGeometry(d.dist, thickness, 8, 100); 
+const orbitMat = new THREE.MeshBasicMaterial({ 
+    color: d.color, 
+    transparent: true, 
+    opacity: 0.75 // Độ trong suốt để không che mất Trái đất
+});
+const orbitLine = new THREE.Mesh(orbitGeo, orbitMat);
+
+// Xoay để nằm ngang theo xích đạo
+orbitLine.rotation.x = Math.PI / 2;
+scene.add(orbitLine);
+
+                // Satellite
+                const sat = new THREE.Group();
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.08,0.08), new THREE.MeshStandardMaterial({color: d.color, emissive: d.color, emissiveIntensity: 0.5}));
+                const wing = new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.08), new THREE.MeshBasicMaterial({color: 0x4444ff, side: THREE.DoubleSide}));
+                wing.rotation.y = Math.PI/2;
+                sat.add(body, wing);
+                
+                sats.push({ name: key, mesh: sat, dist: d.dist, angle: Math.random()*6, speed: 0.01 / Math.sqrt(d.dist) });
+                scene.add(sat);
+            });
+        }
+
+        function focusLayer(type, btn) {
+            const d = data[type];
+            document.querySelectorAll('button').forEach(b => b.className = '');
+            btn.className = 'active-' + type.toLowerCase();
+            
+            const info = document.getElementById('bento-info');
+            info.style.display = 'block';
+            document.getElementById('info-alt').innerText = d.alt;
+            document.getElementById('info-lat').innerText = d.lat;
+            document.getElementById('info-desc').innerText = d.desc;
+
+            // Camera Transition
+            const target = d.cam;
+            const startDist = camera.position.length();
+            let startTime = null;
+            function step(t) {
+                if(!startTime) startTime = t;
+                const progress = Math.min((t - startTime)/800, 1);
+                const ease = 1 - Math.pow(1 - progress, 3);
+                camera.position.setLength(startDist + (target - startDist) * ease);
+                if(progress < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+
+        function updateLabels() {
+            sats.forEach(s => {
+                const label = document.getElementById('label-' + s.name);
+                const vector = new THREE.Vector3().copy(s.mesh.position);
+                
+                // Project 3D point to 2D screen coords
+                vector.project(camera);
+                
+                const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
+                
+                // Hide if behind Earth
+                const dist = s.mesh.position.distanceTo(camera.position);
+                if (vector.z > 1 || dist < 1.1) {
+                    label.style.opacity = 0;
+                } else {
+                    label.style.opacity = 1;
+                    label.style.transform = `translate(${x}px, ${y - 20}px)`;
+                }
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(earth) earth.rotation.y += 0.0005;
+            sats.forEach(s => {
+                s.angle += s.speed;
+                s.mesh.position.set(Math.cos(s.angle)*s.dist, 0, Math.sin(s.angle)*s.dist);
+                s.mesh.lookAt(0,0,0);
+            });
+            updateLabels();
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.onload = init;
+    </script>
+
+  <!-- ==== Phase 0 auto-tracker (injected by deploy tool) ==== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-IEvx56ysu5GhKlOU-a-6jD7rUiY17nM",
+      authDomain: "phase0-activity-analytics.firebaseapp.com",
+      projectId: "phase0-activity-analytics",
+    };
+    const ACTIVITY_ID = "leo-meo-geo";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getAnonId() {
+      let id = localStorage.getItem("phase0_anon_id");
+      if (!id) { id = "anon-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("phase0_anon_id", id); }
+      return id;
+    }
+    const anonId = getAnonId();
+    const sessionStart = Date.now();
+    let interactionCount = 0;
+
+    function sendEvent(eventType, extra) {
+      addDoc(collection(db, "phase0_events"), {
+        activity_id: ACTIVITY_ID, anon_id: anonId, event_type: eventType,
+        client_timestamp: new Date().toISOString(), server_timestamp: serverTimestamp(),
+        seconds_since_open: Math.round((Date.now() - sessionStart) / 1000), extra: extra || "",
+      }).catch(() => {});
+    }
+
+    sendEvent("open");
+
+    // Generic auto-tracking: explicit data-track wins, else id/name/text is used as the label.
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("button, a, [role='button'], input[type='submit']");
+      if (!el) return;
+      const label = el.getAttribute("data-track") || el.id || (el.textContent || "").trim().slice(0, 40) || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label);
+    });
+    document.addEventListener("change", function (e) {
+      const el = e.target;
+      if (!(el.tagName === "SELECT" || (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")))) return;
+      const label = el.getAttribute("data-track") || el.id || el.name || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label + "=" + el.value);
+    });
+
+    window.addEventListener("beforeunload", function () {
+      sendEvent("close", "total_interactions=" + interactionCount);
+    });
+  </script>
+  
+</body>
+</html>
