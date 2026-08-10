@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Verification vs Validation Activity</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Lato', sans-serif; font-size: 16px; margin: 0; padding: 20px; background-color: #ffff; color: #333; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { padding: 15px; border: 1px solid #ddd; text-align: left; vertical-align: middle; }
+    thead th { background-color: #fac800; color: #000054; font-weight: 700; text-transform: capitalize; }
+    tr:nth-child(even) { background-color: #fcfcfc; }
+    
+    /* Dropdown & Feedback logic */
+    select { padding: 8px; width: 100%; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; cursor: pointer; background: white; }
+    .dropdown-container { display: flex; flex-direction: column; gap: 5px; position: relative; }
+    .correct select { background-color: #d4edda; border-color: #28a745; color: #155724; }
+    .incorrect select { background-color: #f8d7da; border-color: #dc3545; color: #721c24; }
+    
+    .feedback-cell { font-weight: 700; font-size: 14px; min-width: 250px; }
+    .status-ok { color: #28a745; }
+    .status-err { color: #dc3545; font-style: italic; }
+
+    /* Buttons */
+    .btn-grp { margin-top: 20px; text-align: right; }
+    button { border: none; padding: 12px 25px; font-size: 14px; cursor: pointer; border-radius: 5px; margin-left: 10px; font-weight: 700; transition: .3s; }
+    #save { background: #ccccdd; color: #000054; }
+    #save:hover { background: #000054; color: #fff; }
+    #reset { background: #fef4cc; color: #000054; }
+    #reset:hover { background: #fac800; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 45%">Scenario</th>
+          <th style="width: 20%">Drop-down</th>
+          <th style="width: 35%">Feedback</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="btn-grp">
+      <button id="save">Save Progress</button>
+      <button id="reset">Start Over</button>
+    </div>
+  </div>
+
+  <script>
+    // Dữ liệu nội dung theo hình ảnh bạn cung cấp
+    const activityData = [
+      {
+        scenario: "A payroll system calculates tax incorrectly because the developer used the wrong formula, which doesn't match the requirements document.",
+        correct: "Verification",
+        explanation: "The code doesn't match the spec"
+      },
+      {
+        scenario: "A hospital appointment app works exactly as specified, but elderly users find it impossible to navigate without assistance.",
+        correct: "Validation",
+        explanation: "The system matches the spec, but fails to meet real user needs"
+      },
+      {
+        scenario: "A navigation app follows the spec and calculates the shortest route — but users expected the fastest route, which wasn't captured in the requirements.",
+        correct: "Validation",
+        explanation: "The spec didn't capture what users actually needed"
+      },
+      {
+        scenario: "A login system grants access without checking the password, contradicting the requirement that states \"valid credentials must be verified before access is granted.\"",
+        correct: "Verification",
+        explanation: "The system contradicts an explicit requirement"
+      }
+    ];
+
+    const baseOptions = ["Verification", "Validation"];
+
+    // Hàm xáo trộn mảng cho dropdown
+    function shuffleArray(array) {
+      let shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    const tbody = document.getElementById('tableBody');
+
+    // Khởi tạo bảng
+    activityData.forEach((item, i) => {
+      const twistedOptions = shuffleArray(baseOptions);
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${item.scenario}</td>
+        <td>
+          <div class="dropdown-container" id="cnt-${i}">
+            <select id="sel-${i}" data-cor="${item.correct}" data-exp="${item.explanation}">
+              <option value="Select">Select answer</option>
+              ${twistedOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+            </select>
+          </div>
+        </td>
+        <td class="feedback-cell" id="fb-${i}"></td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    const selects = document.querySelectorAll('select');
+
+    // Logic kiểm tra đáp án
+    function checkAnswer(el) {
+      const idx = el.id.split('-')[1];
+      const container = document.getElementById('cnt-' + idx);
+      const feedbackCell = document.getElementById('fb-' + idx);
+      const correctAnswer = el.getAttribute('data-cor');
+      const explanation = el.getAttribute('data-exp');
+      
+      container.classList.remove('correct', 'incorrect');
+      feedbackCell.className = 'feedback-cell';
+      feedbackCell.innerText = "";
+
+      if (el.value === "Select") return;
+
+      if (el.value === correctAnswer) {
+        container.classList.add('correct');
+        feedbackCell.classList.add('status-ok');
+        feedbackCell.innerText = explanation;
+      } else {
+        container.classList.add('incorrect');
+        feedbackCell.classList.add('status-err');
+        feedbackCell.innerText = "Try Again";
+      }
+    }
+
+    // Sự kiện change và load dữ liệu cũ
+    selects.forEach(s => {
+      s.addEventListener('change', () => checkAnswer(s));
+      const saved = localStorage.getItem('vv-' + s.id);
+      if (saved) {
+        s.value = saved;
+        checkAnswer(s);
+      }
+    });
+
+    // Button Save
+    document.getElementById('save').onclick = () => {
+      selects.forEach(s => localStorage.setItem('vv-' + s.id, s.value));
+      alert('Progress saved!');
+    };
+
+    // Button Reset
+    document.getElementById('reset').onclick = () => {
+      if (confirm("Clear all answers and start over?")) {
+        selects.forEach(s => localStorage.removeItem('vv-' + s.id));
+        location.reload();
+      }
+    };
+  </script>
+
+  <!-- ==== Phase 0 auto-tracker (injected by deploy tool) ==== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-IEvx56ysu5GhKlOU-a-6jD7rUiY17nM",
+      authDomain: "phase0-activity-analytics.firebaseapp.com",
+      projectId: "phase0-activity-analytics",
+    };
+    const ACTIVITY_ID = "cosc2101-2732-6-1-verification-vs-validation";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getAnonId() {
+      let id = localStorage.getItem("phase0_anon_id");
+      if (!id) { id = "anon-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("phase0_anon_id", id); }
+      return id;
+    }
+    const anonId = getAnonId();
+    const sessionStart = Date.now();
+    let interactionCount = 0;
+
+    function sendEvent(eventType, extra) {
+      addDoc(collection(db, "phase0_events"), {
+        activity_id: ACTIVITY_ID, anon_id: anonId, event_type: eventType,
+        client_timestamp: new Date().toISOString(), server_timestamp: serverTimestamp(),
+        seconds_since_open: Math.round((Date.now() - sessionStart) / 1000), extra: extra || "",
+      }).catch(() => {});
+    }
+
+    sendEvent("open");
+
+    // Generic auto-tracking: explicit data-track wins, else id/name/text is used as the label.
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("button, a, [role='button'], input[type='submit']");
+      if (!el) return;
+      const label = el.getAttribute("data-track") || el.id || (el.textContent || "").trim().slice(0, 40) || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label);
+    });
+    document.addEventListener("change", function (e) {
+      const el = e.target;
+      if (!(el.tagName === "SELECT" || (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")))) return;
+      const label = el.getAttribute("data-track") || el.id || el.name || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label + "=" + el.value);
+    });
+
+    window.addEventListener("beforeunload", function () {
+      sendEvent("close", "total_interactions=" + interactionCount);
+    });
+  </script>
+  
+</body>
+</html>
