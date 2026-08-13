@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Shear and Bending Moment Diagram</title>
+    <style>
+        :root {
+            --color-yellow: #fac800;
+            --color-blue: #000054;
+            --color-red: #e61e2a;
+            --color-grey-light: #f0f0f0;
+            --color-text: #333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        body.is-dragging {
+            cursor: ns-resize;
+            user-select: none;
+        }
+
+        #main-container {
+            width: 100%;
+            max-width: 1100px;
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            color: var(--color-blue);
+            border-bottom: 2px solid var(--color-blue);
+            padding-bottom: 0.5rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+        }
+
+        /* SVG Styling */
+        .problem-svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .problem-svg .beam {
+            fill: #ccccdd;
+            stroke: #000054;
+            stroke-width: 1.5;
+        }
+
+        .problem-svg .support,
+        .problem-svg .force-arrow {
+            stroke: #000054;
+            stroke-width: 1.5;
+            fill: #000054;
+        }
+
+        .problem-svg .support {
+            fill: #000540;
+        }
+
+        .problem-svg .dim-line {
+            stroke: #000054;
+            stroke-width: 1.5;
+        }
+
+        .problem-svg .label-text {
+            font-size: 16px;
+            font-family: inherit;
+            font-weight: regular;
+            fill: var(--color-text);
+            text-anchor: middle;
+        }
+
+        /* Interactive Area */
+        #interactive-area {
+            position: relative;
+            width: 100%;
+        }
+
+        #interactive-svg-container {
+            position: relative;
+            z-index: 1;
+        }
+
+        #interactive-svg .helper-line {
+            stroke: var(--color-blue);
+        }
+
+        #interactive-svg .axis-line {
+            stroke: var(--color-blue);
+            stroke-width: 1.5;
+        }
+
+        #interactive-svg .axis-label {
+            fill: var(--color-blue);
+            font-weight: bold;
+        }
+
+        #shear-force-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .shear-block {
+            position: absolute;
+            background-color: rgba(255, 98, 108, 0.7);
+            pointer-events: all;
+            top: 61.11%;
+            /* y=275/450, the zero axis */
+            transform: translateY(-100%);
+            height: 0;
+            cursor: default;
+        }
+
+        .shear-block.is-draggable {
+            cursor: ns-resize;
+        }
+
+        .shear-block.negative {
+            transform: translateY(0);
+        }
+
+        .value-label {
+          position: absolute;
+         top: -28px;
+         left: 50%;
+         transform: translateX(-50%);
+         background: #fff; /* Đặt lại nền mặc định là màu trắng */
+         padding: 3px 6px;
+         border-radius: 4px;
+         font-size: 14px;
+          font-weight: bold;
+         white-space: nowrap;
+         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Thêm quy tắc mới này: chỉ áp dụng màu vàng cho nhãn ở giữa */
+        .value-label.is-interactive {
+          background-color: var(--color-yellow);
+        }
+        #moment-labels-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 4; /* Make sure it's on top of the canvas */
+            pointer-events: none; /* Allows mouse events to pass through */
+        }
+
+        #moment-labels-overlay .value-label {
+            position: absolute; /* Allow positioning with top/left */
+            display: none; /* Hide them by default, JS will show them */
+            transform: translate(-50%, -100%); /* Centers the box horizontally and places it above its 'top' coordinate */
+        }
+
+        .shear-block.negative .value-label {
+            top: auto;
+            bottom: -28px;
+        }
+
+        #moment-canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        #check-button {
+            width: 30%;
+            padding: 1rem;
+            font-size: 14pt;
+            font-weight: bold;
+            color: white;
+            background-color: var(--color-blue);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        #check-button:hover {
+            background-color: #00007a;
+        }
+
+        #check-button:active {
+            transform: scale(0.98);
+        }
+
+        #feedback-box {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            border-radius: 8px;
+            background-color: var(--color-grey-light);
+            border: 1px solid #ddd;
+        }
+
+        #feedback-box h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--color-blue);
+        }
+
+        #feedback-box p {
+            margin: 0;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="main-container">
+
+        <div id="interactive-area">
+            <div id="interactive-svg-container"></div>
+            <div id="shear-force-overlay"></div>
+            <canvas id="moment-canvas-overlay"></canvas>
+            <div id="moment-labels-overlay">
+                <span id="moment-label-1" class="value-label"></span>
+                <span id="moment-label-2" class="value-label"></span>
+            </div>
+        </div>
+
+        <button id="check-button">Check your answer</button>
+
+        <div id="feedback-box">
+            <h4>Feedback</h4>
+            <p id="feedback-text"></p>
+        </div>
+    </div>
+
+    <script>
+        const App = {
+            svgTemplate: `
+            <svg class="problem-svg" viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrowhead-down" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" />
+                  </marker>
+                  <marker id="arrowhead-up" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 5 L 10 0 L 10 10 Z" />
+                  </marker>
+                </defs>
+                <rect class="beam" x="100" y="75" width="600" height="10" />
+                <g class="force-arrow">
+                 <line x1="250" y1="45" x2="250" y2="70" marker-end="url(#arrowhead-down)" />
+                 <text class="label-text" x="250" y="25">20kN</text>
+                 <line x1="550" y1="45" x2="550" y2="70" marker-end="url(#arrowhead-down)" />
+                 <text class="label-text" x="550" y="25">10kN</text>
+                </g>
+                <g class="force-arrow">
+                 <line x1="100" y1="135" x2="100" y2="90" marker-end="url(#arrowhead-down)" />
+                  <text class="label-text" x="100" y="150">17.5kN</text>
+                 <line x1="700" y1="135" x2="700" y2="90" marker-end="url(#arrowhead-down)" />
+                 <text class="label-text" x="700" y="150">12.5kN</text>
+                </g>
+                <g class="dim-line">
+                 <line x1="100" y1="35" x2="250" y2="35" />
+                 <line x1="100" y1="40" x2="100" y2="30" />
+                 <line x1="250" y1="40" x2="250" y2="30" />
+                 <text class="label-text" x="175" y="25">1.5m</text>
+                 <line x1="250" y1="35" x2="550" y2="35" />
+                 <line x1="550" y1="40" x2="550" y2="30" />
+                 <text class="label-text" x="400" y="25">3m</text>
+                 <line x1="550" y1="35" x2="700" y2="35" />
+                 <line x1="700" y1="40" x2="700" y2="30" />
+                 <text class="label-text" x="625" y="25">1.5m</text>
+                </g>
+                <g class="axis-group">
+                 <line class="helper-line" x1="100" y1="155" x2="100" y2="450" />
+                 <line class="helper-line" x1="250" y1="85" x2="250" y2="450" />
+                 <line class="helper-line" x1="550" y1="85" x2="550" y2="450" />
+                 <line class="helper-line" x1="700" y1="155" x2="700" y2="450" />
+                 <line class="axis-line" x1="60" y1="275" x2="750" y2="275" />
+                 <line class="axis-line" x1="60" y1="425" x2="750" y2="425" />
+                 <path class="axis-line" d="M 60 285 L 60 200 L 55 210 M 60 200 L 65 210" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+                 <path class="axis-line" d="M 60 435 L 60 350 L 55 360 M 60 350 L 65 360" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+                 <text class="axis-label" x="40" y="175">Shear</text>
+                 <text class="axis-label" x="40" y="190">Force</text>
+                 <text class="axis-label" x="30" y="325">Bending</text>
+                 <text class="axis-label" x="30" y="340">Moment</text>
+                </g>
+            </svg>
+        `,
+            beamSegments: [
+                { x: 12.5, width: 18.75 }, { x: 31.25, width: 37.5 }, { x: 68.75, width: 18.75 }
+            ],
+            // --- MODIFIED: Set initial state with FIXED values for first and last segments ---
+            // Segment 1: Fixed at +17.5kN (reaction force)
+            // Segment 2: Starts at 0, user draggable
+            // Segment 3: Fixed at -12.5kN (shear just before right support)
+            shearForces: [17.5, 0, -12.5],
+            maxForce: 25,
+            snapIncrement: 2.5,
+            isDragging: false,
+            activeIndex: null,
+
+            init() {
+                this.cacheDOMElements();
+                this.injectSVG();
+                this.createShearBlocks();
+                this.setupCanvas();
+                this.attachEventListeners();
+                this.updateDiagrams(); // Initial render with fixed values
+            },
+
+            cacheDOMElements() {
+                this.interactiveSVGContainer = document.getElementById('interactive-svg-container');
+                this.shearOverlay = document.getElementById('shear-force-overlay');
+                this.momentCanvas = document.getElementById('moment-canvas-overlay');
+                this.checkButton = document.getElementById('check-button');
+                this.feedbackBox = document.getElementById('feedback-box');
+                this.feedbackText = document.getElementById('feedback-text');
+
+                // ADD THIS
+                this.momentLabels = [
+                    document.getElementById('moment-label-1'),
+                    document.getElementById('moment-label-2')
+                ];
+            },
+
+            injectSVG() {
+                this.interactiveSVGContainer.innerHTML = this.svgTemplate;
+                this.interactiveSVG = this.interactiveSVGContainer.querySelector('svg');
+                this.interactiveSVG.id = 'interactive-svg';
+            },
+
+                        createShearBlocks() {
+                this.beamSegments.forEach((seg, index) => {
+                    const block = document.createElement('div');
+                    block.className = 'shear-block';
+                    block.style.left = `${seg.x}%`;
+                    block.style.width = `${seg.width}%`;
+
+                    // --- CHANGE START ---
+                    // Add a special class 'is-interactive' only to the middle label
+                    let labelClass = "value-label";
+                    if (index === 1) {
+                        labelClass += " is-interactive";
+                    }
+                    block.innerHTML = `<span class="${labelClass}">0.0 kN</span>`;
+                    // --- CHANGE END ---
+
+                    // Only the middle block is marked as draggable
+                    if (index === 1) {
+                        block.classList.add('is-draggable');
+                    }
+                    this.shearOverlay.appendChild(block);
+                });
+                this.shearBlocks = this.shearOverlay.querySelectorAll('.shear-block');
+            },
+
+            setupCanvas() {
+                this.ctx = this.momentCanvas.getContext('2d');
+                const setSize = () => {
+                    const rect = this.momentCanvas.getBoundingClientRect();
+                    this.momentCanvas.width = rect.width * window.devicePixelRatio;
+                    this.momentCanvas.height = rect.height * window.devicePixelRatio;
+                    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                };
+                setSize();
+                window.addEventListener('resize', () => {
+                    setSize();
+                    this.updateDiagrams();
+                });
+            },
+
+            attachEventListeners() {
+                const draggableBlock = this.shearBlocks[1];
+                if (draggableBlock) {
+                    draggableBlock.addEventListener('mousedown', (e) => this.startDrag(e, 1));
+                    draggableBlock.addEventListener('touchstart', (e) => this.startDrag(e, 1), { passive: true });
+                }
+                document.addEventListener('mousemove', (e) => this.drag(e));
+                document.addEventListener('touchmove', (e) => this.drag(e), { passive: false });
+                document.addEventListener('mouseup', () => this.stopDrag());
+                document.addEventListener('touchend', () => this.stopDrag());
+                this.checkButton.addEventListener('click', () => this.checkAnswer());
+            },
+
+            startDrag(e, index) {
+                this.isDragging = true;
+                this.activeIndex = index; // This will always be 1
+                document.body.classList.add('is-dragging');
+            },
+
+            drag(e) {
+                if (!this.isDragging) return;
+                e.preventDefault();
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const rect = this.interactiveSVG.getBoundingClientRect();
+                const zeroAxisY = rect.top + rect.height * (275 / 450);
+                const shearDiagramPixelHeight = rect.height * (150 / 450);
+                const deltaY = zeroAxisY - clientY;
+
+                let force = (deltaY / (shearDiagramPixelHeight / 2)) * this.maxForce;
+                force = Math.round(force / this.snapIncrement) * this.snapIncrement;
+                force = Math.max(-this.maxForce, Math.min(this.maxForce, force));
+
+                // --- FIXED LOGIC: Only update the force for the block being dragged ---
+                if (this.activeIndex === 1) {
+                    this.shearForces[this.activeIndex] = force;
+                }
+
+                this.updateDiagrams();
+            },
+
+            stopDrag() {
+                this.isDragging = false;
+                document.body.classList.remove('is-dragging');
+            },
+
+            updateDiagrams() {
+                this.shearForces.forEach((force, index) => {
+                    const block = this.shearBlocks[index];
+                    const label = block.querySelector('.value-label');
+                    const rect = this.interactiveSVG.getBoundingClientRect();
+                    const shearDiagramPixelHeight = rect.height * (150 / 450);
+                    const blockHeight = (Math.abs(force) / this.maxForce) * (shearDiagramPixelHeight / 2);
+
+                    block.style.height = `${blockHeight}px`;
+                    label.textContent = force.toFixed(1) + ' kN';
+                    block.classList.toggle('negative', force < 0);
+                });
+                this.drawBendingMoment();
+            },
+
+                        drawBendingMoment() {
+                const lengths = [1.5, 3.0, 1.5];
+                const rect = this.momentCanvas.getBoundingClientRect();
+                const maxVisibleMoment = 35; 
+
+                // --- Calculate moments ---
+                let M0 = 0;
+                let M1 = M0 + this.shearForces[0] * lengths[0];
+                let M2 = M1 + this.shearForces[1] * lengths[1];
+                let M3 = M2 + this.shearForces[2] * lengths[2];
+                const moments = [M0, M1, M2, M3];
+
+                // --- Define drawing area boundaries ---
+                const y_zero_px = rect.height * (425 / 450);
+                const momentDiagramPixelHeight = rect.height * (150 / 450);
+                const momentScale = (momentDiagramPixelHeight / 2) / maxVisibleMoment;
+                const yTopBoundary = y_zero_px - (momentDiagramPixelHeight / 2);
+                const yBottomBoundary = y_zero_px + (momentDiagramPixelHeight / 2);
+
+                const getClampedY = (momentValue) => {
+                    const y = y_zero_px - momentValue * momentScale;
+                    return Math.max(yTopBoundary, Math.min(yBottomBoundary, y));
+                };
+
+                // --- Draw the moment diagram line ---
+                this.ctx.clearRect(0, 0, this.momentCanvas.width, this.momentCanvas.height);
+                this.ctx.beginPath();
+                this.ctx.strokeStyle = 'var(--color-blue)';
+                this.ctx.lineWidth = 3 * window.devicePixelRatio;
+                this.ctx.moveTo(rect.width * 0.125, getClampedY(moments[0]));
+                this.ctx.lineTo(rect.width * 0.3125, getClampedY(moments[1]));
+                this.ctx.lineTo(rect.width * 0.6875, getClampedY(moments[2]));
+                this.ctx.lineTo(rect.width * 0.875, getClampedY(moments[3]));
+                this.ctx.stroke();
+
+                // --- START OF NEW LOGIC: Control HTML labels ---
+                const labelPoints = [
+                    { element: this.momentLabels[0], moment: moments[1], x_percent: 0.3125 },
+                    { element: this.momentLabels[1], moment: moments[2], x_percent: 0.6875 }
+                ];
+                
+                labelPoints.forEach(point => {
+                    const x_px = rect.width * point.x_percent;
+                    const y_px = getClampedY(point.moment);
+
+                    point.element.style.display = 'block';
+                    point.element.style.left = `${x_px}px`;
+                    // The '- 10' provides a nice visual offset from the line
+                    point.element.style.top = `${y_px - 10}px`; 
+                    point.element.textContent = point.moment.toFixed(2) + 'kNm';
+                });
+                // --- END OF NEW LOGIC ---
+            },
+
+            checkAnswer() {
+                const correctForce = -2.5; // The correct shear in the middle segment
+                const tolerance = 0.5; // A small tolerance for snapping
+
+                this.feedbackBox.style.display = 'block';
+
+                if (Math.abs(this.shearForces[1] - correctForce) <= tolerance) {
+                    this.feedbackBox.style.backgroundColor = '#d4edda';
+                    this.feedbackBox.style.borderColor = '#c3e6cb';
+                    this.feedbackText.innerHTML = "<strong>Tuyệt vời!</strong> Biểu đồ của bạn đã chính xác. Bạn đã thể hiện thành công mối quan hệ giữa tải trọng, lực cắt và mô-men uốn.";
+                } else {
+                    this.feedbackBox.style.backgroundColor = '#f8d7da';
+                    this.feedbackBox.style.borderColor = '#f5c6cb';
+                    this.feedbackText.innerHTML = "<strong>Chưa hoàn toàn đúng.</strong> Hãy xem lại giá trị lực cắt của bạn. Hãy nhớ rằng tại mỗi lực tập trung, biểu đồ lực cắt sẽ có 'bước nhảy' bằng giá trị của lực đó. Giá trị ở đoạn giữa phải bằng giá trị đoạn đầu (17.5kN) trừ đi lực 20kN.";
+                }
+            }
+        };
+        App.init();
+    </script>
+
+  <!-- ==== Phase 0 auto-tracker (injected by deploy tool) ==== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-IEvx56ysu5GhKlOU-a-6jD7rUiY17nM",
+      authDomain: "phase0-activity-analytics.firebaseapp.com",
+      projectId: "phase0-activity-analytics",
+    };
+    const ACTIVITY_ID = "miet2500-4-1-shear-force-and-bending-moment-diagram-bk";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getAnonId() {
+      let id = localStorage.getItem("phase0_anon_id");
+      if (!id) { id = "anon-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("phase0_anon_id", id); }
+      return id;
+    }
+    const anonId = getAnonId();
+    const sessionStart = Date.now();
+    let interactionCount = 0;
+
+    function sendEvent(eventType, extra) {
+      addDoc(collection(db, "phase0_events"), {
+        activity_id: ACTIVITY_ID, anon_id: anonId, event_type: eventType,
+        client_timestamp: new Date().toISOString(), server_timestamp: serverTimestamp(),
+        seconds_since_open: Math.round((Date.now() - sessionStart) / 1000), extra: extra || "",
+      }).catch(() => {});
+    }
+
+    sendEvent("open");
+
+    // Generic auto-tracking: explicit data-track wins, else id/name/text is used as the label.
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("button, a, [role='button'], input[type='submit']");
+      if (!el) return;
+      const label = el.getAttribute("data-track") || el.id || (el.textContent || "").trim().slice(0, 40) || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label);
+    });
+    document.addEventListener("change", function (e) {
+      const el = e.target;
+      if (!(el.tagName === "SELECT" || (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")))) return;
+      const label = el.getAttribute("data-track") || el.id || el.name || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label + "=" + el.value);
+    });
+
+    window.addEventListener("beforeunload", function () {
+      sendEvent("close", "total_interactions=" + interactionCount);
+    });
+  </script>
+  
+</body>
+
+</html>
