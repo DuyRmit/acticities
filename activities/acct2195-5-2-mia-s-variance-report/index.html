@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Cost Variance Analysis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Lato', sans-serif;
+      font-size: 16px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    table tr td,
+    table tr th {
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    select {
+      padding: 8px;
+      width: 100%;
+      border: 1px solid #ddd;
+      background-color: white;
+      border-radius: 4px;
+      font-size: 15px;
+    }
+
+    .dropdown-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .feedback-icon {
+      margin-left: 10px;
+      font-size: 18px;
+      display: none;
+    }
+
+    .correct select {
+      background-color: #d4edda;
+      border-color: #28a745;
+      color: #155724;
+    }
+
+    .correct .feedback-icon {
+      display: inline;
+      color: #28a745;
+    }
+
+    .incorrect select {
+      background-color: #f8d7da;
+      border-color: #dc3545;
+      color: #721c24;
+    }
+
+    .incorrect .feedback-icon {
+      display: inline;
+      color: #dc3545;
+    }
+
+    .no-selection select {
+      background-color: white;
+      border: 1px solid #ddd;
+    }
+
+    .button-group {
+      margin-top: 20px;
+      text-align: right;
+    }
+
+    #saveAnswersButton,
+    #downloadPdfButton,
+    #resetButton {
+      color: #000054;
+      border: none;
+      padding: 10px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 5px;
+      margin-left: 10px;
+      font-weight: bold;
+    }
+
+    #saveAnswersButton {
+      background-color: #ccccdd;
+      color: #000054;
+    }
+    #saveAnswersButton:hover {
+        background-color: #000054;
+        color: white;
+    }
+    
+    #resetButton {
+      background-color: #fef4cc;
+      color: #000054;
+    }
+    #resetButton:hover {
+        background-color: #fac800;
+      color: #000054;
+    }
+
+    #downloadPdfButton {
+        background-color: #000054;
+        color: white;
+    }
+    #downloadPdfButton:hover {
+        background-color: #000054;
+        color: white;
+    }
+
+    #downloadPdfButton:disabled {
+      background-color: #e9ecef;
+      color: #ccccdd;
+      cursor: not-allowed;
+    }
+    
+    thead th {
+        background-color: #fac800;
+        color: #000054;
+        font-weight: bold;
+        text-align: center;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 17%;">Cost Component</th>
+          <th style="width: 15%;">Standard Cost</th>
+          <th style="width: 18%;">Actual Cost</th>
+          <th style="width: 25%;">Variance Type</th>
+          <th style="width: 25%;">Favourable or Unfavourable?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="variance-row">
+          <td>Materials Price</td>
+          <td>$2.00 &rarr; $2.20</td>
+          <td>Higher price paid</td>
+          <td>
+            <div class="dropdown-container">
+              <label class="sr-only" for="select-type-0">Select Variance Type for Materials Price</label>
+              <select id="select-type-0" rel="Price Variance" class="variance-type-select">
+                <option value="Select">Select an option</option>
+              </select>
+              <span aria-hidden="true" class="feedback-icon" role="img"></span>
+            </div>
+          </td>
+          <td>
+            <div class="dropdown-container">
+              <label class="sr-only" for="select-fav-0">Select Favourability for Materials Price</label>
+              <select id="select-fav-0" rel="Unfavourable" class="favourability-select">
+                <option value="Select">Select an option</option>
+              </select>
+              <span aria-hidden="true" class="feedback-icon" role="img"></span>
+            </div>
+          </td>
+        </tr>
+        <tr class="variance-row">
+          <td>Materials Usage</td>
+          <td>10,000L vs 10,500L</td>
+          <td>More used than expected</td>
+          <td>
+            <div class="dropdown-container">
+              <label class="sr-only" for="select-type-1">Select Variance Type for Materials Usage</label>
+              <select id="select-type-1" rel="Usage Variance" class="variance-type-select">
+                <option value="Select">Select an option</option>
+              </select>
+              <span aria-hidden="true" class="feedback-icon" role="img"></span>
+            </div>
+          </td>
+          <td>
+            <div class="dropdown-container">
+              <label class="sr-only" for="select-fav-1">Select Favourability for Materials Usage</label>
+              <select id="select-fav-1" rel="Unfavourable" class="favourability-select">
+                <option value="Select">Select an option</option>
+              </select>
+              <span aria-hidden="true" class="feedback-icon" role="img"></span>
+            </div>
+          </td>
+        </tr>
+        <tr class="variance-row">
+          <td>Labour Efficiency</td>
+          <td>30min vs 28min</td>
+          <td>Faster production</td>
+          <td>
+            <div class="dropdown-container">
+              <label class="sr-only" for="select-type-2">Select Variance Type for Labour Efficiency</label>
+              <select id="select-type-2" rel="Efficiency Variance" class="variance-type-select">
+                <option value="Select">Select an option</option>
+              </select>
+              <span aria-hidden="true" class="feedback-icon" role="img"></span>
+            </div>
+          </td>
+          <td>
+            <div class="dropdown-container">
+              <label class="sr-only" for="select-fav-2">Select Favourability for Labour Efficiency</label>
+              <select id="select-fav-2" rel="Favourable" class="favourability-select">
+                <option value="Select">Select an option</option>
+              </select>
+              <span aria-hidden="true" class="feedback-icon" role="img"></span>
+            </div>
+          </td>
+        </tr>
+        <tr class="variance-row">
+          <td>Labour Rate</td>
+          <td>$20 &rarr; $21/hr</td>
+          <td>Higher wage rate</td>
+          <td>
+            <div class="dropdown-container">
+              <label class="sr-only" for="select-type-3">Select Variance Type for Labour Rate</label>
+              <select id="select-type-3" rel="Rate Variance" class="variance-type-select">
+                <option value="Select">Select an option</option>
+              </select>
+              <span aria-hidden="true" class="feedback-icon" role="img"></span>
+            </div>
+          </td>
+          <td>
+            <div class="dropdown-container">
+              <label class="sr-only" for="select-fav-3">Select Favourability for Labour Rate</label>
+              <select id="select-fav-3" rel="Unfavourable" class="favourability-select">
+                <option value="Select">Select an option</option>
+              </select>
+              <span aria-hidden="true" class="feedback-icon" role="img"></span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="button-group">
+      <button id="saveAnswersButton">Save Your Answers</button>
+      <button id="resetButton">Start Over</button>
+      <button disabled id="downloadPdfButton">Download PDF</button>
+    </div>
+  </div>
+  <div aria-live="polite" id="ariaStatus" style="position: absolute; overflow: hidden; clip: rect(0 0 0 0); height: 1px; width: 1px; margin: -1px; padding: 0; border: 0;">
+  </div>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script>
+    const varianceTypeOptions = [
+      "Price Variance",
+      "Usage Variance",
+      "Efficiency Variance",
+      "Rate Variance"
+    ];
+
+    const favourabilityOptions = [
+      "Favourable",
+      "Unfavourable"
+    ];
+
+    function shuffle(array) {
+      let currentIndex = array.length,
+        randomIndex;
+      while (currentIndex != 0) {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+        [array[currentIndex], array[randomIndex]] = [
+          array[randomIndex], array[currentIndex]
+        ];
+      }
+      return array;
+    }
+
+    function announceStatus(message) {
+      const ariaStatusDiv = document.getElementById('ariaStatus');
+      ariaStatusDiv.textContent = '';
+      setTimeout(() => {
+        ariaStatusDiv.textContent = message;
+      }, 100);
+    }
+
+    function checkIfAllCorrect() {
+      let allCorrect = true;
+      $('.variance-row select').each(function() {
+        if ($(this).val() === "Select" || $(this).val() !== $(this).attr('rel')) {
+          allCorrect = false;
+          return false; // break the loop
+        }
+      });
+      $('#downloadPdfButton').prop('disabled', !allCorrect);
+    }
+
+    $(function() {
+      // Populate dropdowns with shuffled options
+      const shuffledVarianceTypes = shuffle([...varianceTypeOptions]);
+      $('.variance-type-select').each(function() {
+        const select = $(this);
+        shuffledVarianceTypes.forEach(opt => {
+          select.append($('<option>').val(opt).text(opt));
+        });
+      });
+
+      const shuffledFavourability = shuffle([...favourabilityOptions]);
+      $('.favourability-select').each(function() {
+        const select = $(this);
+        shuffledFavourability.forEach(opt => {
+          select.append($('<option>').val(opt).text(opt));
+        });
+      });
+      
+      // Load saved answers from localStorage
+      $('select').each(function() {
+        const savedValue = localStorage.getItem($(this).attr('id'));
+        if (savedValue) {
+          $(this).val(savedValue);
+        }
+      });
+
+      // Attach change event handler to all selects
+      $('select').change(function() {
+        const container = $(this).parent();
+        const feedback = container.find('.feedback-icon');
+        const correct = $(this).attr('rel');
+        const val = $(this).val();
+
+        container.removeClass('correct incorrect no-selection');
+        feedback.hide();
+
+        if (val === "Select") {
+            container.addClass('no-selection');
+            return;
+        }
+
+        if (val === correct) {
+          container.addClass('correct');
+          feedback.text('✔').attr('aria-label', 'Correct').show();
+          announceStatus("Correct answer selected.");
+        } else {
+          container.addClass('incorrect');
+          feedback.text('✖').attr('aria-label', 'Incorrect').show();
+          announceStatus("Incorrect answer selected.");
+        }
+
+        checkIfAllCorrect();
+      }).change(); // Trigger change on load to show initial status of saved answers
+
+      // Button click handlers
+      $('#saveAnswersButton').click(function() {
+        $('select').each(function() {
+          localStorage.setItem($(this).attr('id'), $(this).val());
+        });
+        alert('Your answers have been saved!');
+        announceStatus('Your answers have been saved!');
+      });
+
+      $('#resetButton').click(function() {
+        if (confirm("Are you sure you want to start over? All saved answers will be deleted.")) {
+            $('select').each(function() {
+                localStorage.removeItem($(this).attr('id'));
+            });
+            location.reload();
+        }
+      });
+
+      $('#downloadPdfButton').click(function() {
+        if ($(this).prop('disabled')) return;
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text("Cost Variance Analysis - Answer Key", 14, 22);
+
+        const tableData = [];
+        const headers = [
+            ["Cost Component", "Standard Cost", "Actual Cost", "Variance Type", "Favourable or Unfavourable?"]
+        ];
+
+        $('.variance-row').each(function() {
+          const row = $(this);
+          const rowData = [
+            row.find('td:eq(0)').text().trim(),
+            // *** THIS IS THE FIX ***
+            // Replace the special arrow character with a PDF-safe one
+            row.find('td:eq(1)').text().trim().replace(/→/g, '->'),
+            row.find('td:eq(2)').text().trim(),
+            row.find('td:eq(3) select').attr('rel').trim(),
+            row.find('td:eq(4) select').attr('rel').trim()
+          ];
+          tableData.push(rowData);
+        });
+
+        doc.autoTable({
+          head: headers,
+          body: tableData,
+          startY: 30,
+          theme: 'grid',
+          headStyles: { fillColor: [250, 200, 0], textColor: [0, 0, 84] },
+          styles: { halign: 'center' }
+        });
+
+        doc.save("Cost Variance Analysis Answers.pdf");
+      });
+
+    });
+  </script>
+
+  <!-- ==== Phase 0 auto-tracker (injected by deploy tool) ==== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-IEvx56ysu5GhKlOU-a-6jD7rUiY17nM",
+      authDomain: "phase0-activity-analytics.firebaseapp.com",
+      projectId: "phase0-activity-analytics",
+    };
+    const ACTIVITY_ID = "acct2195-5-2-mia-s-variance-report";
+    const SEMESTER = "2026S2";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getAnonId() {
+      let id = localStorage.getItem("phase0_anon_id");
+      if (!id) { id = "anon-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("phase0_anon_id", id); }
+      return id;
+    }
+    const anonId = getAnonId();
+    const sessionStart = Date.now();
+    let interactionCount = 0;
+
+    function sendEvent(eventType, extra) {
+      addDoc(collection(db, "phase0_events"), {
+        activity_id: ACTIVITY_ID, semester: SEMESTER, anon_id: anonId, event_type: eventType,
+        client_timestamp: new Date().toISOString(), server_timestamp: serverTimestamp(),
+        seconds_since_open: Math.round((Date.now() - sessionStart) / 1000), extra: extra || "",
+      }).catch(() => {});
+    }
+
+    sendEvent("open");
+
+    // Generic auto-tracking: explicit data-track wins, else id/name/text is used as the label.
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("button, a, [role='button'], input[type='submit']");
+      if (!el) return;
+      const label = el.getAttribute("data-track") || el.id || (el.textContent || "").trim().slice(0, 40) || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label);
+    });
+    document.addEventListener("change", function (e) {
+      const el = e.target;
+      if (!(el.tagName === "SELECT" || (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")))) return;
+      const label = el.getAttribute("data-track") || el.id || el.name || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label + "=" + el.value);
+    });
+
+    window.addEventListener("beforeunload", function () {
+      sendEvent("close", "total_interactions=" + interactionCount);
+    });
+  </script>
+  
+</body>
+
+</html>
