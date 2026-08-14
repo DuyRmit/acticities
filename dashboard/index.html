@@ -7,11 +7,13 @@
 <style>
   :root {
     --navy: #000054;
+    --navy-light: #1a1a70;
     --red: #E61E2A;
     --gold: #FAC800;
     --paper: #F7F7FA;
     --ink: #1A1A2E;
     --line: #DCDCE8;
+    --muted: #6b6b80;
   }
   * { box-sizing: border-box; }
   body {
@@ -20,6 +22,7 @@
     background: var(--paper);
     color: var(--ink);
   }
+  a { color: inherit; text-decoration: none; }
 
   /* ---- Gate ---- */
   #gate {
@@ -55,34 +58,59 @@
     font-size: 14px;
     cursor: pointer;
   }
-  #gate button:hover { background: #1a1a70; }
+  #gate button:hover { background: var(--navy-light); }
   #gateError { color: var(--red); font-size: 13px; height: 16px; }
 
-  /* ---- Dashboard ---- */
-  #dash { display: none; max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
+  /* ---- Shell ---- */
+  #dash { display: none; }
   header.top {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    border-bottom: 4px solid var(--gold);
-    padding-bottom: 14px;
-    margin-bottom: 28px;
-  }
-  header.top h1 { font-size: 22px; color: var(--navy); margin: 0; }
-  header.top .updated { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #888; }
-
-  .activity-block { margin-bottom: 40px; }
-  .activity-block h2 {
-    font-size: 16px;
-    color: #fff;
     background: var(--navy);
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 4px;
-    margin-bottom: 16px;
+    border-bottom: 4px solid var(--gold);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header.top .brand { display: flex; align-items: baseline; gap: 10px; }
+  header.top h1 { font-size: 18px; color: #fff; margin: 0; cursor: pointer; }
+  header.top .updated { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #9a9ac0; }
+  #searchForm { display: flex; gap: 0; }
+  #searchInput {
+    font-family: 'Lato', sans-serif;
+    font-size: 13px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px 0 0 6px;
+    width: 220px;
+  }
+  #searchInput:focus { outline: none; }
+  #searchForm button {
+    background: var(--gold);
+    color: var(--navy);
+    border: none;
+    padding: 8px 14px;
+    border-radius: 0 6px 6px 0;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
   }
 
-  .scorecards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  main { max-width: 1160px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .breadcrumb { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+  .breadcrumb a:hover { color: var(--navy); text-decoration: underline; }
+  .breadcrumb .sep { margin: 0 6px; color: var(--line); }
+  .breadcrumb .current { color: var(--ink); font-weight: 700; }
+
+  h2.page-title { font-size: 22px; color: var(--navy); margin: 0 0 4px; }
+  p.page-sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+
+  .scorecards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 28px; }
   .card {
     background: #fff;
     border: 1px solid var(--line);
@@ -90,8 +118,33 @@
     border-radius: 8px;
     padding: 16px 18px;
   }
-  .card .num { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; color: var(--navy); }
-  .card .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+  .card .num { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; color: var(--navy); }
+  .card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 32px 0 14px;
+  }
+
+  /* Grid of clickable entity cards (courses / modules / activities) */
+  .entity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .entity-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s;
+    display: block;
+  }
+  .entity-card:hover { box-shadow: 0 4px 14px rgba(0,0,84,0.1); border-color: var(--navy); transform: translateY(-1px); }
+  .entity-card .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--red); text-transform: uppercase; letter-spacing: 0.5px; }
+  .entity-card .name { font-size: 14px; font-weight: 700; color: var(--navy); margin: 4px 0 8px; word-break: break-word; }
+  .entity-card .meta { font-size: 12px; color: var(--muted); display: flex; gap: 12px; flex-wrap: wrap; }
+  .entity-card .meta b { color: var(--ink); font-family: 'JetBrains Mono', monospace; }
 
   table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
   th, td { text-align: left; padding: 9px 14px; font-size: 13px; border-bottom: 1px solid var(--line); }
@@ -99,7 +152,19 @@
   tr:last-child td { border-bottom: none; }
   .pct-bar { display: inline-block; height: 6px; background: var(--gold); border-radius: 3px; vertical-align: middle; margin-left: 8px; }
 
-  #empty { text-align: center; color: #888; padding: 60px 0; }
+  #empty, #loading { text-align: center; color: var(--muted); padding: 60px 0; }
+
+  .filter-row { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+  .filter-row input {
+    font-family: 'Lato', sans-serif;
+    font-size: 13px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    flex: 1;
+    min-width: 200px;
+  }
+  .filter-row input:focus { outline: none; border-color: var(--navy); }
 </style>
 </head>
 <body>
@@ -114,10 +179,16 @@
 
 <div id="dash">
   <header class="top">
-    <h1>Phase 0 Activity Analytics</h1>
-    <span class="updated" id="updatedAt"></span>
+    <div class="brand">
+      <h1 id="homeLink">Phase 0 Activity Analytics</h1>
+      <span class="updated" id="updatedAt"></span>
+    </div>
+    <form id="searchForm">
+      <input id="searchInput" type="text" placeholder="Search course, module, or activity…" autocomplete="off" />
+      <button type="submit">Search</button>
+    </form>
   </header>
-  <div id="content"></div>
+  <main id="content"></main>
 </div>
 
 <script type="module">
@@ -143,6 +214,7 @@
   const dash = document.getElementById("dash");
   const input = document.getElementById("passcodeInput");
   const gateError = document.getElementById("gateError");
+  const content = document.getElementById("content");
 
   async function tryUnlock() {
     const hash = await sha256Hex(input.value.trim());
@@ -150,7 +222,7 @@
       sessionStorage.setItem("phase0_unlocked", "1");
       gate.style.display = "none";
       dash.style.display = "block";
-      loadData();
+      boot();
     } else {
       gateError.textContent = "Incorrect passcode.";
       input.value = "";
@@ -162,81 +234,296 @@
   if (sessionStorage.getItem("phase0_unlocked") === "1") {
     gate.style.display = "none";
     dash.style.display = "block";
-    loadData();
+    boot();
   }
 
-  async function loadData() {
+  document.getElementById("homeLink").addEventListener("click", () => { location.hash = "#/"; });
+  document.getElementById("searchForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const q = document.getElementById("searchInput").value.trim();
+    location.hash = "#/search/" + encodeURIComponent(q);
+  });
+
+  // ---------- Naming convention ----------
+  // activity_id = "<course-code>-<module-number>-<activity-name-with-dashes>"
+  // e.g. acct2195-11-3-renewable-energy-investment
+  //      course = "acct2195", module = "11", name = "3-renewable-energy-investment"
+  function parseActivityId(id) {
+    const parts = String(id).split("-");
+    const course = (parts[0] || "(unknown)").toLowerCase();
+    const module = parts.length > 1 ? parts[1] : "(unknown)";
+    const name = parts.length > 2 ? parts.slice(2).join("-") : id;
+    return { course, module, name };
+  }
+
+  // ---------- Data model ----------
+  let ALL_EVENTS = [];
+  let ACTIVITIES = {};   // activity_id -> { id, course, module, name, events: [] }
+  let COURSES = {};      // course -> { modules: { module -> { activities: Set, events: [] } }, events: [] }
+
+  async function boot() {
+    content.innerHTML = "<div id='loading'>Loading…</div>";
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const content = document.getElementById("content");
-    content.innerHTML = "<div id='empty'>Loading…</div>";
-
     const snap = await getDocs(collection(db, "phase0_events"));
+
     if (snap.empty) {
-      content.innerHTML = "<div id='empty'>No events logged yet. Open the activity to generate data.</div>";
+      content.innerHTML = "<div id='empty'>No events logged yet. Open an activity to generate data.</div>";
       return;
     }
 
-    const events = [];
-    snap.forEach(doc => events.push(doc.data()));
+    snap.forEach(doc => ALL_EVENTS.push(doc.data()));
     document.getElementById("updatedAt").textContent = "Loaded " + new Date().toLocaleString();
 
-    // Group by activity_id
-    const byActivity = {};
-    events.forEach(e => {
+    ALL_EVENTS.forEach(e => {
       const id = e.activity_id || "(unknown)";
-      (byActivity[id] = byActivity[id] || []).push(e);
+      const { course, module, name } = parseActivityId(id);
+
+      if (!ACTIVITIES[id]) ACTIVITIES[id] = { id, course, module, name, events: [] };
+      ACTIVITIES[id].events.push(e);
+
+      if (!COURSES[course]) COURSES[course] = { modules: {}, events: [] };
+      COURSES[course].events.push(e);
+      if (!COURSES[course].modules[module]) COURSES[course].modules[module] = { activities: new Set(), events: [] };
+      COURSES[course].modules[module].events.push(e);
+      COURSES[course].modules[module].activities.add(id);
     });
 
-    content.innerHTML = "";
-    Object.keys(byActivity).sort().forEach(activityId => {
-      const evs = byActivity[activityId];
-      const opens = evs.filter(e => e.event_type === "open");
-      const closes = evs.filter(e => e.event_type === "close");
-      const interactions = evs.filter(e => e.event_type === "interaction");
-      const uniqueVisitors = new Set(opens.map(e => e.anon_id)).size;
-      const avgTime = closes.length
-        ? Math.round(closes.reduce((s, e) => s + (e.seconds_since_open || 0), 0) / closes.length)
-        : null;
+    window.addEventListener("hashchange", render);
+    render();
+  }
 
-      const breakdown = {};
-      interactions.forEach(e => {
-        const key = e.extra || "(unlabeled)";
-        breakdown[key] = (breakdown[key] || 0) + 1;
-      });
-      const maxCount = Math.max(1, ...Object.values(breakdown));
-
-      const block = document.createElement("div");
-      block.className = "activity-block";
-
-      const rows = Object.entries(breakdown)
-        .sort((a, b) => b[1] - a[1])
-        .map(([label, count]) => {
-          const widthPx = Math.round((count / maxCount) * 120);
-          return `<tr><td>${escapeHtml(label)}</td><td>${count}<span class="pct-bar" style="width:${widthPx}px"></span></td></tr>`;
-        }).join("");
-
-      block.innerHTML = `
-        <h2>${escapeHtml(activityId)}</h2>
-        <div class="scorecards">
-          <div class="card"><div class="num">${opens.length}</div><div class="label">Total visits</div></div>
-          <div class="card"><div class="num">${uniqueVisitors}</div><div class="label">Unique visitors</div></div>
-          <div class="card"><div class="num">${avgTime !== null ? avgTime + "s" : "—"}</div><div class="label">Avg time on activity</div></div>
-          <div class="card"><div class="num">${interactions.length}</div><div class="label">Total interactions</div></div>
-        </div>
-        <table>
-          <thead><tr><th>Interaction</th><th>Count</th></tr></thead>
-          <tbody>${rows || "<tr><td colspan='2'>No interactions logged yet.</td></tr>"}</tbody>
-        </table>
-      `;
-      content.appendChild(block);
+  // ---------- Stats helper ----------
+  function statsFromEvents(events) {
+    const opens = events.filter(e => e.event_type === "open");
+    const closes = events.filter(e => e.event_type === "close");
+    const interactions = events.filter(e => e.event_type === "interaction");
+    const uniqueVisitors = new Set(opens.map(e => e.anon_id)).size;
+    const avgTime = closes.length
+      ? Math.round(closes.reduce((s, e) => s + (e.seconds_since_open || 0), 0) / closes.length)
+      : null;
+    const breakdown = {};
+    interactions.forEach(e => {
+      const key = e.extra || "(unlabeled)";
+      breakdown[key] = (breakdown[key] || 0) + 1;
     });
+    return { visits: opens.length, uniqueVisitors, avgTime, interactionCount: interactions.length, breakdown };
   }
 
   function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, c => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
+  }
+
+  function scorecardsHtml(stats) {
+    return `
+      <div class="scorecards">
+        <div class="card"><div class="num">${stats.visits}</div><div class="label">Total visits</div></div>
+        <div class="card"><div class="num">${stats.uniqueVisitors}</div><div class="label">Unique visitors</div></div>
+        <div class="card"><div class="num">${stats.avgTime !== null ? stats.avgTime + "s" : "—"}</div><div class="label">Avg time on activity</div></div>
+        <div class="card"><div class="num">${stats.interactionCount}</div><div class="label">Total interactions</div></div>
+      </div>`;
+  }
+
+  function breakdownTableHtml(breakdown) {
+    const maxCount = Math.max(1, ...Object.values(breakdown), 0);
+    const rows = Object.entries(breakdown)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => {
+        const widthPx = Math.round((count / maxCount) * 120);
+        return `<tr><td>${escapeHtml(label)}</td><td>${count}<span class="pct-bar" style="width:${widthPx}px"></span></td></tr>`;
+      }).join("");
+    return `
+      <table>
+        <thead><tr><th>Interaction</th><th>Count</th></tr></thead>
+        <tbody>${rows || "<tr><td colspan='2'>No interactions logged yet.</td></tr>"}</tbody>
+      </table>`;
+  }
+
+  function breadcrumbHtml(trail) {
+    // trail = [{label, href} or {label} for current]
+    const parts = trail.map((t, i) => {
+      if (i === trail.length - 1) return `<span class="current">${escapeHtml(t.label)}</span>`;
+      return `<a href="${t.href}">${escapeHtml(t.label)}</a>`;
+    });
+    return `<div class="breadcrumb">${parts.join('<span class="sep">/</span>')}</div>`;
+  }
+
+  // ---------- Router ----------
+  function render() {
+    const hash = location.hash || "#/";
+    const segs = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+
+    if (segs.length === 0) return renderHome();
+    if (segs[0] === "course" && segs.length === 1) return renderNotFound();
+    if (segs[0] === "course" && segs.length === 2) return renderCourse(segs[1]);
+    if (segs[0] === "course" && segs.length === 4 && segs[2] === "module") return renderModule(segs[1], segs[3]);
+    if (segs[0] === "activity" && segs.length === 2) return renderActivity(segs[1]);
+    if (segs[0] === "search") return renderSearch(segs[1] || "");
+    return renderNotFound();
+  }
+
+  function renderHome() {
+    document.getElementById("searchInput").value = "";
+    const overall = statsFromEvents(ALL_EVENTS);
+    const courseKeys = Object.keys(COURSES).sort();
+
+    const courseCards = courseKeys.map(course => {
+      const c = COURSES[course];
+      const s = statsFromEvents(c.events);
+      const moduleCount = Object.keys(c.modules).length;
+      const activityCount = new Set(c.events.map(e => e.activity_id)).size;
+      return `
+        <a class="entity-card" href="#/course/${encodeURIComponent(course)}">
+          <div class="eyebrow">Course</div>
+          <div class="name">${escapeHtml(course.toUpperCase())}</div>
+          <div class="meta">
+            <span><b>${activityCount}</b> activities</span>
+            <span><b>${moduleCount}</b> modules</span>
+            <span><b>${s.visits}</b> visits</span>
+          </div>
+        </a>`;
+    }).join("");
+
+    content.innerHTML = `
+      <h2 class="page-title">Overview</h2>
+      <p class="page-sub">All activities hosted in this pilot, aggregated across ${courseKeys.length} course${courseKeys.length === 1 ? "" : "s"}.</p>
+      <div class="scorecards">
+        <div class="card"><div class="num">${Object.keys(ACTIVITIES).length}</div><div class="label">HTML activities</div></div>
+        <div class="card"><div class="num">${courseKeys.length}</div><div class="label">Courses</div></div>
+        <div class="card"><div class="num">${overall.visits}</div><div class="label">Total visits</div></div>
+        <div class="card"><div class="num">${overall.uniqueVisitors}</div><div class="label">Unique visitors</div></div>
+        <div class="card"><div class="num">${overall.interactionCount}</div><div class="label">Total interactions</div></div>
+        <div class="card"><div class="num">${overall.avgTime !== null ? overall.avgTime + "s" : "—"}</div><div class="label">Avg time on activity</div></div>
+      </div>
+      <div class="section-title">Browse by course</div>
+      <div class="entity-grid">${courseCards || "<p>No courses yet.</p>"}</div>
+    `;
+  }
+
+  function renderCourse(course) {
+    const c = COURSES[course];
+    if (!c) return renderNotFound();
+    document.getElementById("searchInput").value = "";
+    const s = statsFromEvents(c.events);
+    const moduleKeys = Object.keys(c.modules).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    const moduleCards = moduleKeys.map(module => {
+      const m = c.modules[module];
+      const ms = statsFromEvents(m.events);
+      return `
+        <a class="entity-card" href="#/course/${encodeURIComponent(course)}/module/${encodeURIComponent(module)}">
+          <div class="eyebrow">Module</div>
+          <div class="name">${escapeHtml(module)}</div>
+          <div class="meta">
+            <span><b>${m.activities.size}</b> activities</span>
+            <span><b>${ms.visits}</b> visits</span>
+          </div>
+        </a>`;
+    }).join("");
+
+    content.innerHTML = `
+      ${breadcrumbHtml([{ label: "Home", href: "#/" }, { label: course.toUpperCase() }])}
+      <h2 class="page-title">${escapeHtml(course.toUpperCase())}</h2>
+      <p class="page-sub">${moduleKeys.length} module${moduleKeys.length === 1 ? "" : "s"}, ${new Set(c.events.map(e => e.activity_id)).size} activities</p>
+      ${scorecardsHtml(s)}
+      <div class="section-title">Modules</div>
+      <div class="entity-grid">${moduleCards || "<p>No modules yet.</p>"}</div>
+    `;
+  }
+
+  function renderModule(course, module) {
+    const c = COURSES[course];
+    const m = c && c.modules[module];
+    if (!m) return renderNotFound();
+    document.getElementById("searchInput").value = "";
+    const s = statsFromEvents(m.events);
+    const activityIds = Array.from(m.activities).sort();
+
+    const activityCards = activityIds.map(id => {
+      const a = ACTIVITIES[id];
+      const as = statsFromEvents(a.events);
+      return `
+        <a class="entity-card" href="#/activity/${encodeURIComponent(id)}">
+          <div class="eyebrow">Activity</div>
+          <div class="name">${escapeHtml(a.name)}</div>
+          <div class="meta">
+            <span><b>${as.visits}</b> visits</span>
+            <span><b>${as.uniqueVisitors}</b> visitors</span>
+            <span><b>${as.avgTime !== null ? as.avgTime + "s" : "—"}</b> avg</span>
+          </div>
+        </a>`;
+    }).join("");
+
+    content.innerHTML = `
+      ${breadcrumbHtml([
+        { label: "Home", href: "#/" },
+        { label: course.toUpperCase(), href: "#/course/" + encodeURIComponent(course) },
+        { label: "Module " + module }
+      ])}
+      <h2 class="page-title">${escapeHtml(course.toUpperCase())} — Module ${escapeHtml(module)}</h2>
+      <p class="page-sub">${activityIds.length} activit${activityIds.length === 1 ? "y" : "ies"}</p>
+      ${scorecardsHtml(s)}
+      <div class="section-title">Activities</div>
+      <div class="entity-grid">${activityCards || "<p>No activities yet.</p>"}</div>
+    `;
+  }
+
+  function renderActivity(id) {
+    const a = ACTIVITIES[id];
+    if (!a) return renderNotFound();
+    document.getElementById("searchInput").value = "";
+    const s = statsFromEvents(a.events);
+
+    content.innerHTML = `
+      ${breadcrumbHtml([
+        { label: "Home", href: "#/" },
+        { label: a.course.toUpperCase(), href: "#/course/" + encodeURIComponent(a.course) },
+        { label: "Module " + a.module, href: "#/course/" + encodeURIComponent(a.course) + "/module/" + encodeURIComponent(a.module) },
+        { label: a.name }
+      ])}
+      <h2 class="page-title">${escapeHtml(a.name)}</h2>
+      <p class="page-sub" style="font-family:'JetBrains Mono',monospace;">${escapeHtml(a.id)}</p>
+      ${scorecardsHtml(s)}
+      <div class="section-title">Interaction breakdown</div>
+      ${breakdownTableHtml(s.breakdown)}
+    `;
+  }
+
+  function renderSearch(query) {
+    document.getElementById("searchInput").value = query;
+    const q = query.trim().toLowerCase();
+    const matches = Object.values(ACTIVITIES).filter(a =>
+      !q || a.id.toLowerCase().includes(q) || a.course.includes(q) || a.module.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)
+    ).sort((x, y) => x.id.localeCompare(y.id));
+
+    const cards = matches.map(a => {
+      const as = statsFromEvents(a.events);
+      return `
+        <a class="entity-card" href="#/activity/${encodeURIComponent(a.id)}">
+          <div class="eyebrow">${escapeHtml(a.course.toUpperCase())} · Module ${escapeHtml(a.module)}</div>
+          <div class="name">${escapeHtml(a.name)}</div>
+          <div class="meta">
+            <span><b>${as.visits}</b> visits</span>
+            <span><b>${as.uniqueVisitors}</b> visitors</span>
+          </div>
+        </a>`;
+    }).join("");
+
+    content.innerHTML = `
+      ${breadcrumbHtml([{ label: "Home", href: "#/" }, { label: `Search: "${query}"` }])}
+      <h2 class="page-title">Search results</h2>
+      <p class="page-sub">${matches.length} match${matches.length === 1 ? "" : "es"} for “${escapeHtml(query)}”</p>
+      <div class="entity-grid">${cards || "<p>No matching activities.</p>"}</div>
+    `;
+  }
+
+  function renderNotFound() {
+    content.innerHTML = `
+      ${breadcrumbHtml([{ label: "Home", href: "#/" }, { label: "Not found" }])}
+      <div id="empty">Nothing here. <a href="#/" style="color:var(--navy);text-decoration:underline;">Back to overview</a>.</div>
+    `;
   }
 </script>
 </body>
