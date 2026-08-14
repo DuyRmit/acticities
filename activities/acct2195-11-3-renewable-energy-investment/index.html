@@ -222,6 +222,10 @@
     };
     const ACTIVITY_ID = "acct2195-11-3-renewable-energy-investment";
 
+    // This pilot activity predates the Uploader's semester field, so it's set by hand here.
+    // If/when this HTML is cloned for a later semester, update this value in the clone.
+    const SEMESTER = "2026S1";
+
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -242,6 +246,7 @@
     function sendEvent(eventType, extra) {
       addDoc(collection(db, "phase0_events"), {
         activity_id: ACTIVITY_ID,
+        semester: SEMESTER,
         anon_id: anonId,
         event_type: eventType,
         client_timestamp: new Date().toISOString(),
