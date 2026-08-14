@@ -38,10 +38,15 @@
 
   label { display: block; font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
   .field { margin-bottom: 20px; }
+  .field small { display: block; font-weight: 400; color: #888; margin-top: 4px; }
   input[type="text"] {
     width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; font-family: 'Lato', sans-serif;
   }
   input[type="text"]:focus { outline: none; border-color: var(--navy); }
+  input[type="text"].invalid { border-color: var(--red); }
+  #semesterHint { font-size: 12px; margin-top: 4px; height: 14px; }
+  #semesterHint.err { color: var(--red); }
+  #semesterHint.ok { color: #2a8a4a; }
 
   #dropzone {
     border: 2px dashed var(--line); border-radius: 8px; padding: 30px;
@@ -86,6 +91,13 @@
   </div>
 
   <div class="field">
+    <label for="semesterInput">Semester</label>
+    <input id="semesterInput" type="text" placeholder="e.g. 2026S1" />
+    <div id="semesterHint"></div>
+    <small>Format: <code>&lt;year&gt;S1</code>, <code>&lt;year&gt;S2</code>, or <code>&lt;year&gt;SU</code> (summer). Pre-filled with a guess — change it if this activity belongs to a different semester.</small>
+  </div>
+
+  <div class="field">
     <label>HTML file</label>
     <div id="dropzone">Drag an .html file here, or click to browse</div>
     <input type="file" id="fileInput" accept=".html" />
@@ -127,6 +139,41 @@
   document.getElementById("gateBtn").addEventListener("click", tryUnlock);
   gateInput.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
 
+  // ---- Semester field ----
+  // RMIT-style semester code: <year>S1 (~Mar-Jun), <year>S2 (~Jul-Oct), <year>SU (summer, ~Nov-Feb).
+  // This is only a *starting suggestion* — the team member can freely overwrite it.
+  function suggestSemester(date = new Date()) {
+    const month = date.getMonth() + 1; // 1-12
+    const year = date.getFullYear();
+    if (month >= 3 && month <= 6) return `${year}S1`;
+    if (month >= 7 && month <= 10) return `${year}S2`;
+    if (month >= 11) return `${year}SU`;
+    return `${year - 1}SU`; // Jan/Feb -> summer term that started the previous year
+  }
+
+  const SEMESTER_RE = /^20\d{2}(S1|S2|SU)$/;
+  const semesterInput = document.getElementById("semesterInput");
+  const semesterHint = document.getElementById("semesterHint");
+  semesterInput.value = suggestSemester();
+
+  function validateSemester() {
+    const val = semesterInput.value.trim();
+    const valid = SEMESTER_RE.test(val);
+    semesterInput.classList.toggle("invalid", val.length > 0 && !valid);
+    if (val.length === 0) {
+      semesterHint.textContent = "";
+      semesterHint.className = "";
+    } else if (!valid) {
+      semesterHint.textContent = "Doesn't match <year>S1 / <year>S2 / <year>SU — e.g. 2026S1";
+      semesterHint.className = "err";
+    } else {
+      semesterHint.textContent = "";
+      semesterHint.className = "";
+    }
+    return valid;
+  }
+  semesterInput.addEventListener("input", () => { validateSemester(); checkReady(); });
+
   // ---- File handling ----
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("fileInput");
@@ -163,7 +210,7 @@
 
   activityName.addEventListener("input", checkReady);
   function checkReady() {
-    deployBtn.disabled = !(fileContent && activityName.value.trim());
+    deployBtn.disabled = !(fileContent && activityName.value.trim() && validateSemester());
   }
 
   deployBtn.addEventListener("click", async () => {
@@ -180,6 +227,7 @@
         body: JSON.stringify({
           passcode: unlockedPasscode,
           activity_name: activityName.value.trim(),
+          semester: semesterInput.value.trim(),
           html: fileContent,
         }),
       });
@@ -201,7 +249,7 @@
     if (ok) {
       const iframe = `<iframe src="${data.live_url}" width="100%" height="600" frameborder="0" title="${activityName.value.trim()}"></iframe>`;
       result.innerHTML = `
-        <strong>${data.updated ? "Updated" : "Deployed"}!</strong><br/>
+        <strong>${data.updated ? "Updated" : "Deployed"}!</strong> <code>${semesterInput.value.trim()}</code><br/>
         Live URL: <a href="${data.live_url}" target="_blank">${data.live_url}</a><br/>
         Dashboard: <a href="${data.dashboard_url}" target="_blank">${data.dashboard_url}</a>
         <p>Canvas embed:</p>
