@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Centralised vs Decentralised</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    body{font-family:'Lato',sans-serif;font-size:16px;margin:0;padding:10px}
+    table{border-collapse:collapse;width:100%;background:#fff}
+    th,td{padding:12px;border:1px solid #ddd;text-align:left}
+    thead th{background:#fac800;color:#000054;font-weight:700;text-align:center}
+    tr:nth-child(even){background:#f9f9f9}
+    select{padding:8px;width:100%;border:1px solid #ddd;border-radius:4px;font-size:15px;cursor:pointer}
+    .drp-cnt{display:flex;align-items:center}
+    .fb-ico{margin-left:10px;font-size:18px;display:none}
+    .correct select{background:#d4edda;border-color:#28a745;color:#155724}
+    .correct .fb-ico{display:inline;color:#28a745}
+    .incorrect select{background:#f8d7da;border-color:#dc3545;color:#721c24}
+    .incorrect .fb-ico{display:inline;color:#dc3545}
+    .rsn-cl{font-weight:700;font-size:14px;min-width:200px}
+    .s-ok{color:#28a745}
+    .s-err{color:#dc3545;font-style:italic}
+    .btn-grp{margin-top:20px;text-align:right}
+    button{border:none;padding:12px 25px;font-size:14px;cursor:pointer;border-radius:5px;margin-left:10px;font-weight:700;transition:.3s}
+    #save{background:#ccc;color:#000054}
+    #save:hover{background:#000054;color:#fff}
+    #reset{background:#fff9e6;color:#000054}
+    #reset:hover{background:#fac800}
+  </style>
+</head>
+<body>
+  <div style="max-width:1200px;margin:auto">
+    <table>
+      <thead>
+        <tr><th style="width:45%">Item</th><th style="width:20%">Category</th><th style="width:35%">Reason</th></tr>
+      </thead>
+      <tbody id="tb"></tbody>
+    </table>
+    <div class="btn-grp">
+      <button id="save">Save Progress</button>
+      <button id="reset">Start Over</button>
+    </div>
+  </div>
+
+  <script>
+    const data = [
+      ["A single server stores all records — if it fails, all data is lost", "Centralised", "Single point of failure"],
+      ["Thousands of nodes each hold a complete copy of the ledger", "Decentralised", "Distributed redundancy across network"],
+      ["One administrator can change records without anyone else knowing", "Centralised", "Unilateral control without transparency"],
+      ["Any change must be validated by the majority of nodes before being accepted", "Decentralised", "Consensus mechanism prevents unilateral changes"],
+      ["Users must trust the institution not to manipulate their account balances", "Centralised", "Trust-based model — relies on institutional integrity"],
+      ["All transactions are visible on a public ledger anyone can audit", "Decentralised", "Radical transparency — no information silos"],
+      ["Settlement of a cross-border transfer takes 2–5 business days via intermediaries", "Centralised", "Multiple intermediaries add delays"],
+      ["Transactions settle in seconds or minutes via direct peer-to-peer network", "Decentralised", "No intermediaries = faster settlement"]
+    ];
+
+    const tbody = document.getElementById('tb');
+
+    data.forEach((item, i) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${item[0]}</td>
+        <td>
+          <div class="drp-cnt" id="cnt-${i}">
+            <select id="sel-${i}" data-cor="${item[1]}" data-rsn="${item[2]}">
+              <option value="Select">Select</option>
+              <option value="Centralised">Centralised</option>
+              <option value="Decentralised">Decentralised</option>
+            </select>
+            <span class="fb-ico"></span>
+          </div>
+        </td>
+        <td class="rsn-cl" id="rsn-${i}"></td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    const selects = document.querySelectorAll('select');
+
+    function check(el) {
+      const cnt = document.getElementById('cnt-' + el.id.split('-')[1]);
+      const rsnCl = document.getElementById('rsn-' + el.id.split('-')[1]);
+      const cor = el.getAttribute('data-cor');
+      const rsn = el.getAttribute('data-rsn');
+      
+      cnt.classList.remove('correct', 'incorrect');
+      rsnCl.className = 'rsn-cl';
+      rsnCl.innerText = "";
+
+      if (el.value === "Select") return;
+
+      if (el.value === cor) {
+        cnt.classList.add('correct');
+        cnt.querySelector('.fb-ico').innerText = '✔';
+        rsnCl.classList.add('s-ok');
+        rsnCl.innerText = rsn;
+      } else {
+        cnt.classList.add('incorrect');
+        cnt.querySelector('.fb-ico').innerText = '✖';
+        rsnCl.classList.add('s-err');
+        rsnCl.innerText = "Try again!";
+      }
+    }
+
+    selects.forEach(s => {
+      s.addEventListener('change', () => check(s));
+      const saved = localStorage.getItem(s.id);
+      if (saved) { s.value = saved; check(s); }
+    });
+
+    document.getElementById('save').onclick = () => {
+      selects.forEach(s => localStorage.setItem(s.id, s.value));
+      alert('Progress saved!');
+    };
+
+    document.getElementById('reset').onclick = () => {
+      if (confirm("Start over?")) {
+        selects.forEach(s => localStorage.removeItem(s.id));
+        location.reload();
+      }
+    };
+  </script>
+
+  <!-- ==== Phase 0 auto-tracker (injected by deploy tool) ==== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-IEvx56ysu5GhKlOU-a-6jD7rUiY17nM",
+      authDomain: "phase0-activity-analytics.firebaseapp.com",
+      projectId: "phase0-activity-analytics",
+    };
+    const ACTIVITY_ID = "inte2581-1-2-centralised-or-decentralised";
+    const SEMESTER = "2026S2";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getAnonId() {
+      let id = localStorage.getItem("phase0_anon_id");
+      if (!id) { id = "anon-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("phase0_anon_id", id); }
+      return id;
+    }
+    const anonId = getAnonId();
+    const sessionStart = Date.now();
+    let interactionCount = 0;
+
+    function sendEvent(eventType, extra) {
+      addDoc(collection(db, "phase0_events"), {
+        activity_id: ACTIVITY_ID, semester: SEMESTER, anon_id: anonId, event_type: eventType,
+        client_timestamp: new Date().toISOString(), server_timestamp: serverTimestamp(),
+        seconds_since_open: Math.round((Date.now() - sessionStart) / 1000), extra: extra || "",
+      }).catch(() => {});
+    }
+
+    sendEvent("open");
+
+    // Generic auto-tracking: explicit data-track wins, else id/name/text is used as the label.
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("button, a, [role='button'], input[type='submit']");
+      if (!el) return;
+      const label = el.getAttribute("data-track") || el.id || (el.textContent || "").trim().slice(0, 40) || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label);
+    });
+    document.addEventListener("change", function (e) {
+      const el = e.target;
+      if (!(el.tagName === "SELECT" || (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")))) return;
+      const label = el.getAttribute("data-track") || el.id || el.name || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label + "=" + el.value);
+    });
+
+    window.addEventListener("beforeunload", function () {
+      sendEvent("close", "total_interactions=" + interactionCount);
+    });
+  </script>
+  
+</body>
+</html>
