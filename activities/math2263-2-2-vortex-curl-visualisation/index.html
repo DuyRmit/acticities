@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            color: #333;
+            overflow: hidden;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            background-color: none;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .glass-panel-light {
+            background-color: rgb(255, 255, 255);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+    </style>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.2.3",
+        "react-dom/client": "https://esm.sh/react-dom@19.2.3/client"
+      }
+    }
+    </script>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="module">
+        import React, { useState, useRef, useEffect } from 'react';
+        import ReactDOM from 'react-dom/client';
+
+        const VortexPosition = {
+            INNER_FIELD: 'INNER_FIELD',
+            OUTER_FIELD: 'OUTER_FIELD',
+            NON_UNIFORM_FLOW: 'NON_UNIFORM_FLOW'
+        };
+
+        const POSITION_MAP = {
+            [VortexPosition.INNER_FIELD]: {
+                radius: 120,
+                label: 'Inner Field Region (Rotational)',
+                description: 'Near the centre, water speed changes with distance from the middle, so one side of the disc moves faster than the other. This speed difference makes the disc spin about its own centre, showing non-zero curl (local rotation # 0).',
+                isRotational: true
+            },
+            [VortexPosition.OUTER_FIELD]: {
+                radius: 220,
+                label: 'Outer Field Region (Irrotational)',
+                description: 'Place the disc farther out, where flow speed is nearly uniform across it. The disc is carried along but does not spin, so curl is zero (local rotation = 0), even though the water still moves in circular paths.',
+                isRotational: false
+            },
+            [VortexPosition.NON_UNIFORM_FLOW]: {
+                radius: null,
+                discOffsetFromCenterY: -50,
+                label: 'Non-Uniform Flow (Rotational)',
+                description: 'Curl does not require visible circular motion, it can occur even in straight flow. If flow at the top moves faster than at the bottom, a disc placed in the flow experiences unequal forces, creating shear that makes it spin.',
+                isRotational: true
+            }
+        };
+
+        const VortexCanvas = ({ selectedPosition, isPlaying }) => {
+            const canvasRef = useRef(null);
+            const requestRef = useRef();
+            const angleRef = useRef(0);
+            const discAngleRef = useRef(0);
+            const fieldLinesRef = useRef([]);
+            const nonUniformFlowOffsetRef = useRef(0);
+
+            const isPlayingRef = useRef(isPlaying);
+            useEffect(() => {
+                isPlayingRef.current = isPlaying;
+            }, [isPlaying]);
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const numLinesRadial = 600;
+                const maxRadius = 500;
+                const minRadius = 10;
+                const numLinesNonUniform = 2000;
+                const lineLengthNonUniform = 40;
+                const gapNonUniform = 0.8;
+
+                const lines = [];
+                if (selectedPosition === VortexPosition.NON_UNIFORM_FLOW) {
+                    for (let i = 0; i < numLinesNonUniform; i++) {
+                        const startY = -canvas.height / 2 + i * gapNonUniform + (Math.random() - 0.5) * gapNonUniform / 2;
+                        lines.push({
+                            startY,
+                            length: lineLengthNonUniform + (Math.random() - 0.5) * 10,
+                            offset: Math.random() * canvas.width * 2 - canvas.width
+                        });
+                    }
+                } else {
+                    for (let i = 0; i < numLinesRadial; i++) {
+                        const startR = minRadius + Math.random() * (maxRadius - minRadius);
+                        const startAngle = Math.random() * Math.PI * 2;
+                        lines.push({ startR, startAngle });
+                    }
+                }
+                fieldLinesRef.current = lines;
+
+                const animate = () => {
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return;
+
+                    const VORTEX_RADIUS = 150;
+                    const BASE_OMEGA = 0.02;
+                    const K_CONSTANT = BASE_OMEGA * Math.pow(VORTEX_RADIUS, 2);
+                    const NON_UNIFORM_SHEAR_RATE_BASE = -0.04;
+                    const NON_UNIFORM_FLOW_SPEED_FACTOR_BASE = 1.5;
+                    const DISC_SIZE = 24;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+                    const activePlaying = isPlayingRef.current;
+
+                    if (selectedPosition === VortexPosition.NON_UNIFORM_FLOW) {
+                        if (activePlaying) {
+                            discAngleRef.current += NON_UNIFORM_SHEAR_RATE_BASE;
+                            nonUniformFlowOffsetRef.current -= NON_UNIFORM_FLOW_SPEED_FACTOR_BASE;
+                        }
+
+                        fieldLinesRef.current.forEach(line => {
+                            const yNormalized = (line.startY + centerY) / canvas.height;
+                            let speedMultiplier = Math.max(0.5, Math.min(1.5, (1.0 - yNormalized) * 1.5 + 0.2));
+
+                            ctx.strokeStyle = `rgba(30, 144, 255, ${0.4 + speedMultiplier * 0.3})`;
+                            ctx.lineWidth = 1.5;
+                            ctx.beginPath();
+                            let currentX = line.offset + nonUniformFlowOffsetRef.current * speedMultiplier;
+                            if (currentX + line.length < -canvas.width / 2) {
+                                line.offset += canvas.width * 2;
+                                currentX = line.offset + nonUniformFlowOffsetRef.current * speedMultiplier;
+                            }
+                            ctx.moveTo(currentX + centerX, centerY + line.startY);
+                            ctx.lineTo(currentX + line.length + centerX, centerY + line.startY);
+                            ctx.stroke();
+                        });
+
+                        const discY = centerY + POSITION_MAP[selectedPosition].discOffsetFromCenterY;
+                        drawDisc(ctx, centerX, discY, DISC_SIZE, discAngleRef.current);
+
+                    } else {
+                        const config = POSITION_MAP[selectedPosition];
+
+                        if (activePlaying) {
+                            let orbitalOmega = (config.radius <= VORTEX_RADIUS)
+                                ? BASE_OMEGA
+                                : K_CONSTANT / Math.pow(config.radius, 2);
+
+                            angleRef.current += orbitalOmega;
+                            if (config.isRotational) discAngleRef.current += orbitalOmega;
+                        }
+
+                        fieldLinesRef.current.forEach(line => {
+                            if (activePlaying) {
+                                let lineOmega = (line.startR < VORTEX_RADIUS)
+                                    ? BASE_OMEGA
+                                    : K_CONSTANT / Math.pow(line.startR, 2);
+                                line.startAngle += lineOmega;
+                            }
+
+                            ctx.strokeStyle = `rgba(30, 144, 255, ${0.4 + (1 - line.startR / 500) * 0.4})`;
+                            ctx.lineWidth = 1.5;
+                            ctx.beginPath();
+
+                            const numSegments = 50;
+                            const spiralLengthFactor = 5;
+                            const spiralAngleFactor = 20;
+
+                            ctx.moveTo(centerX + Math.cos(line.startAngle) * line.startR, centerY + Math.sin(line.startAngle) * line.startR);
+
+                            for (let i = 1; i <= numSegments; i++) {
+                                const currentR = line.startR + (i / numSegments) * spiralLengthFactor;
+                                let currentAngle = line.startAngle;
+
+                                if (currentR < VORTEX_RADIUS) {
+                                    currentAngle += BASE_OMEGA * (i / numSegments) * spiralAngleFactor;
+                                } else {
+                                    currentAngle += (K_CONSTANT / Math.pow(currentR, 2)) * (i / numSegments) * spiralAngleFactor;
+                                }
+
+                                ctx.lineTo(centerX + Math.cos(currentAngle) * currentR, centerY + Math.sin(currentAngle) * currentR);
+                            }
+                            ctx.stroke();
+                        });
+
+                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+                        ctx.setLineDash([8, 8]);
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, VORTEX_RADIUS, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        const discX = centerX + Math.cos(angleRef.current) * config.radius;
+                        const discY = centerY + Math.sin(angleRef.current) * config.radius;
+                        drawDisc(ctx, discX, discY, DISC_SIZE, discAngleRef.current);
+                    }
+
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX - 10, centerY); ctx.lineTo(centerX + 10, centerY);
+                    ctx.moveTo(centerX, centerY - 10); ctx.lineTo(centerX, centerY + 10);
+                    ctx.stroke();
+
+                    requestRef.current = requestAnimationFrame(animate);
+                };
+
+                const drawDisc = (ctx, x, y, size, rotation) => {
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    const grad = ctx.createRadialGradient(x - 5, y - 5, 2, x, y, size);
+                    grad.addColorStop(0, '#f38f95'); grad.addColorStop(1, '#e61e2a');
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(rotation);
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 4;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -18); ctx.stroke();
+                    ctx.restore();
+                };
+
+                requestRef.current = requestAnimationFrame(animate);
+                const resize = () => {
+                    if (canvas.parentElement) {
+                        canvas.width = canvas.parentElement.clientWidth;
+                        canvas.height = canvas.parentElement.clientHeight;
+                    }
+                };
+                window.addEventListener('resize', resize);
+                resize();
+
+                return () => {
+                    window.removeEventListener('resize', resize);
+                    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+                };
+            }, [selectedPosition]);
+
+            return React.createElement('canvas', { ref: canvasRef, className: "w-full h-full cursor-crosshair" });
+        };
+
+        const InfoPanel = ({ currentPosition }) => {
+            const config = POSITION_MAP[currentPosition];
+            
+            const nonUniformBg = 'bg-[#fad2d4]';
+            const nonUniformText = 'text-[#000054]';
+
+            let dotColor = '';
+            let curlBgColor = '';
+            let curlTextColor = '';
+
+            if (currentPosition === VortexPosition.INNER_FIELD) {
+                dotColor = 'bg-[#fac800]';
+                curlBgColor = 'bg-[#feefb3]';
+                curlTextColor = 'text-[#000054]';
+            } else if (currentPosition === VortexPosition.OUTER_FIELD) {
+                dotColor = 'bg-[#000054]';
+                curlBgColor = 'bg-[#c2c2ff]';
+                curlTextColor = 'text-[#000054]';
+            } else if (currentPosition === VortexPosition.NON_UNIFORM_FLOW) {
+                dotColor = 'bg-[#cd5c5c]';
+                curlBgColor = nonUniformBg;
+                curlTextColor = nonUniformText;
+            }
+
+            return React.createElement('div', { className: "flex flex-col gap-5" }, [
+                // 1. Header
+                React.createElement('div', { key: 'header', className: "flex items-center gap-4" }, [
+                    React.createElement('div', { key: 'dot', className: `w-4 h-4 rounded-full animate-pulse ${dotColor}` }),
+                    React.createElement('h2', { key: 'label', className: "text-2xl font-semibold tracking-normal text-gray-800" }, config.label)
+                ]),
+                // 2. Trạng thái Curl (Đã chuyển lên đây)
+                React.createElement('div', { key: 'curl-state', className: "flex" }, [
+                    React.createElement('span', { key: 'curl-label', className: `text-base font-bold px-3 py-1 rounded-lg ${curlBgColor} ${curlTextColor}` }, 
+                        config.isRotational ? 'Non-Zero Curl' : 'Zero Curl'
+                    )
+                ]),
+                // 3. Ô mô tả (Bên dưới nhãn Curl)
+                React.createElement('div', { key: 'transcript-box', className: "p-5 bg-white rounded-xl border border-gray-200 shadow-sm" }, [
+                    React.createElement('p', { key: 'transcript', className: "text-base text-gray-700 leading-relaxed italic whitespace-pre-line" }, 
+                        `"${config.description}"`
+                    )
+                ])
+            ]);
+        };
+
+        const Controls = ({ currentPosition, setPosition, isPlaying, setIsPlaying }) => {
+            const positions = Object.values(VortexPosition);
+
+            return React.createElement('div', { className: "flex flex-col gap-4" }, [
+                React.createElement('div', { key: 'play-pause-container', className: "flex justify-center mb-2" }, [
+                    React.createElement('button', {
+                        key: 'play-pause',
+                        onClick: () => setIsPlaying(!isPlaying),
+                        className: "flex items-center gap-2 px-4 py-2 rounded-full border border-gray-200 bg-white/50 text-gray-500 hover:text-gray-700 hover:bg-white hover:border-gray-300 transition-all text-xs font-medium shadow-sm group",
+                        "aria-label": isPlaying ? "Pause simulation" : "Play simulation"
+                    }, [
+                        React.createElement('i', {
+                            className: `fa-solid ${isPlaying ? 'fa-pause' : 'fa-play'} text-[10px] ${isPlaying ? 'text-gray-400' : 'text-indigo-500'} group-hover:scale-110 transition-transform`
+                        }),
+                        React.createElement('span', {}, isPlaying ? 'Pause Animation' : 'Resume Animation')
+                    ])
+                ]),
+                React.createElement('div', { key: 'position-buttons', className: "grid grid-cols-3 gap-2" },
+                    positions.map((pos) => {
+                        let buttonClasses = 'flex-1 py-3 px-2 text-[10px] sm:text-xs rounded-lg font-bold transition-all border-2';
+                        let content = '';
+
+                        if (pos === VortexPosition.INNER_FIELD) {
+                            content = 'Inner Field';
+                            buttonClasses += currentPosition === pos
+                                ? ' bg-[#feefb3] border-[#fac800] text-[#000054] shadow-md'
+                                : ' bg-white border-transparent text-gray-500 hover:bg-[#feefb3]';
+                        } else if (pos === VortexPosition.OUTER_FIELD) {
+                            content = 'Outer Field';
+                            buttonClasses += currentPosition === pos
+                                ? ' bg-[#c2c2ff] border-[#000054] text-[#000054] shadow-md'
+                                : ' bg-white border-transparent text-gray-500 hover:bg-[#c2c2ff]';
+                        } else if (pos === VortexPosition.NON_UNIFORM_FLOW) {
+                            content = 'Non-Uniform';
+                            buttonClasses += currentPosition === pos
+                                ? ' bg-[#fad2d4] border-[#e61e2a] text-[#000054] shadow-md'
+                                : ' bg-white border-transparent text-gray-500 hover:bg-[#fad2d4]';
+                        }
+
+                        return React.createElement('button', {
+                            key: pos,
+                            onClick: () => setPosition(pos),
+                            className: buttonClasses
+                        }, content);
+                    })
+                )
+            ]);
+        };
+
+        const App = () => {
+            const [position, setPosition] = useState(VortexPosition.INNER_FIELD);
+            const [isPlaying, setIsPlaying] = useState(true);
+
+            return React.createElement('div', { className: "min-h-screen w-full flex p-6" }, [
+                React.createElement('div', { key: 'container', className: "w-[1200px] h-[600px] max-w-full max-h-[90vh] overflow-hidden flex flex-col md:flex-row rounded-2xl border border-gray-100 relative bg-white shadow-xl" }, [
+                    React.createElement('div', { key: 'sim', className: "flex-1 relative h-full overflow-hidden" }, [
+                        React.createElement(VortexCanvas, { key: 'canvas', selectedPosition: position, isPlaying: isPlaying }),
+                    ]),
+                    React.createElement('aside', { key: 'sidebar', className: "w-full md:w-96 glass-panel-light p-8 flex flex-col gap-8 z-10 border-l " }, [
+                        React.createElement(InfoPanel, { key: 'info', currentPosition: position }),
+                        React.createElement('div', { key: 'bottom', className: "mt-auto space-y-8" }, [
+                            React.createElement(Controls, { key: 'controls', currentPosition: position, setPosition: setPosition, isPlaying: isPlaying, setIsPlaying: setIsPlaying })
+                        ])
+                    ])
+                ])
+            ]);
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+
+  <!-- ==== Phase 0 auto-tracker (injected by deploy tool) ==== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-IEvx56ysu5GhKlOU-a-6jD7rUiY17nM",
+      authDomain: "phase0-activity-analytics.firebaseapp.com",
+      projectId: "phase0-activity-analytics",
+    };
+    const ACTIVITY_ID = "math2263-2-2-vortex-curl-visualisation";
+    const SEMESTER = "2026S2";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getAnonId() {
+      let id = localStorage.getItem("phase0_anon_id");
+      if (!id) { id = "anon-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("phase0_anon_id", id); }
+      return id;
+    }
+    const anonId = getAnonId();
+    const sessionStart = Date.now();
+    let interactionCount = 0;
+
+    function sendEvent(eventType, extra) {
+      addDoc(collection(db, "phase0_events"), {
+        activity_id: ACTIVITY_ID, semester: SEMESTER, anon_id: anonId, event_type: eventType,
+        client_timestamp: new Date().toISOString(), server_timestamp: serverTimestamp(),
+        seconds_since_open: Math.round((Date.now() - sessionStart) / 1000), extra: extra || "",
+      }).catch(() => {});
+    }
+
+    sendEvent("open");
+
+    // Generic auto-tracking: explicit data-track wins, else id/name/text is used as the label.
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("button, a, [role='button'], input[type='submit']");
+      if (!el) return;
+      const label = el.getAttribute("data-track") || el.id || (el.textContent || "").trim().slice(0, 40) || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label);
+    });
+    document.addEventListener("change", function (e) {
+      const el = e.target;
+      if (!(el.tagName === "SELECT" || (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")))) return;
+      const label = el.getAttribute("data-track") || el.id || el.name || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label + "=" + el.value);
+    });
+
+    window.addEventListener("beforeunload", function () {
+      sendEvent("close", "total_interactions=" + interactionCount);
+    });
+  </script>
+  
+</body>
+
+</html>
