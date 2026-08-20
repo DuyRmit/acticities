@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Lighting Simulation Lab</title>
+    <!-- Lato and JetBrains Mono Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* RMIT Palette */
+            --rmit-blue: #000054;
+            --rmit-red: #E61E2A;
+            --rmit-yellow: #FAC800;
+            --pastel-blue: #e8e8ff;
+            --pastel-red: #ffebeb;
+            --pastel-yellow: #fff9e6;
+            --border-color: #eeeeee;
+        }
+
+        body {
+            font-family: 'Lato', sans-serif;
+            font-size: 13pt;
+            color: var(--rmit-blue);
+            background: transparent;
+            margin: 0;
+            padding: 12px 16px;
+            max-width: 1200px;
+            margin: 0 auto;
+            overflow-x: hidden;
+        }
+
+        .header {
+            margin-bottom: 20px;
+            /* Removed border-bottom line */
+            padding-bottom: 8px;
+        }
+
+        .title {
+            font-weight: 900;
+            font-size: 1.5rem;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        /* Tabs Navigation */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            background: #f5f5f5;
+            cursor: pointer;
+            font-family: 'Lato', sans-serif;
+            font-weight: 700;
+            font-size: 11pt;
+            color: var(--rmit-blue);
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: #ffffff;
+            border-color: var(--rmit-blue);
+            color: var(--rmit-red);
+            padding-bottom: 10px;
+            margin-bottom: -1px;
+            z-index: 2;
+        }
+
+        /* Main Workspace */
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 16px;
+            background: #ffffff;
+            border: 1px solid var(--rmit-blue);
+            border-radius: 0 12px 12px 12px;
+            padding: 16px;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+            min-height: 550px;
+        }
+
+        /* Simulation Canvas Area */
+        #canvas-container {
+            background: #000;
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #1e1e24;
+            cursor: move;
+        }
+
+        /* Control Panel */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .control-group {
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: #fafafa;
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .action-btn {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--rmit-blue);
+            background: white;
+            color: var(--rmit-blue);
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 11pt;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--pastel-blue);
+        }
+
+        .action-btn.active {
+            background: var(--rmit-blue);
+            color: white;
+        }
+
+        .info-box {
+            background: var(--pastel-yellow);
+            border-left: 6px solid var(--rmit-yellow);
+            padding: 16px;
+            font-size: 13pt;
+            line-height: 1.5;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10pt;
+            color: var(--rmit-red);
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .hint {
+            font-size: 11pt;
+            color: #666;
+            font-style: italic;
+            margin-top: auto;
+        }
+
+        @media (max-width: 900px) {
+            .workspace { grid-template-columns: 1fr; }
+            #canvas-container { height: 400px; order: 1; }
+            .controls { order: 2; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1 class="title">3D Lighting Lab <span style="color: var(--rmit-red)">Studio</span></h1>
+</div>
+
+<div class="tabs">
+    <button class="tab-btn active" data-tab="1">Direction</button>
+    <button class="tab-btn" data-tab="2">Quality</button>
+    <button class="tab-btn" data-tab="3">Window Lab</button>
+</div>
+
+<div class="workspace">
+    <!-- 3D Scene Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Instructions & Controls -->
+    <div class="controls">
+        <div class="control-group">
+            <div id="tab-1-controls" class="tab-content">
+                <div class="mono">Activity 1: Direction</div>
+                <div class="btn-grid">
+                    <button class="action-btn active" data-dir="front">Front</button>
+                    <button class="action-btn" data-dir="side">Side</button>
+                    <button class="action-btn" data-dir="back">Back</button>
+                    <button class="action-btn" data-dir="top">Top</button>
+                </div>
+            </div>
+
+            <div id="tab-2-controls" class="tab-content" style="display:none;">
+                <div class="mono">Activity 2: Quality</div>
+                <div class="btn-grid">
+                    <button class="action-btn active" data-quality="hard">Hard Light</button>
+                    <button class="action-btn" data-quality="soft">Soft Light</button>
+                </div>
+            </div>
+
+            <div id="tab-3-controls" class="tab-content" style="display:none;">
+                <div class="mono">Activity 3: Window Pos</div>
+                <div class="btn-grid">
+                    <button class="action-btn active" data-window="facing">Facing</button>
+                    <button class="action-btn" data-window="side">Side-On</button>
+                    <button class="action-btn" data-window="behind">Behind</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box" id="feedback">
+            <strong>Front Lighting:</strong> Direct light on the beaver's friendly face. Notice how the muzzle catches the light evenly, minimizing deep shadows.
+        </div>
+        
+        <div class="hint">
+            💡 <strong>Interact:</strong> Rotate the beaver to see how light wraps around 3D space. In <strong>Soft Light</strong>, shadows will appear much blurrier.
+        </div>
+    </div>
+</div>
+
+<!-- Three.js Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+    // --- THREE.JS SETUP ---
+    let scene, camera, renderer, beaver, mainLight, ambientLight, floor;
+    const container = document.getElementById('canvas-container');
+
+    function init3D() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050508);
+
+        camera = new THREE.PerspectiveCamera(38, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(0, 1.2, 5.8);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+        container.appendChild(renderer.domElement);
+
+        beaver = new THREE.Group();
+
+        const furMat = new THREE.MeshStandardMaterial({ color: 0xbc844c, roughness: 0.9 });
+        const muzzleMat = new THREE.MeshStandardMaterial({ color: 0xdfb48a, roughness: 0.8 });
+        const darkMat = new THREE.MeshStandardMaterial({ color: 0x3d2517, roughness: 1 });
+        const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
+
+        // Body & Head (One large rounded pear shape)
+        const body = new THREE.Mesh(new THREE.SphereGeometry(1.05, 48, 48), furMat);
+        body.position.y = -0.2;
+        body.scale.set(1.1, 0.95, 1);
+        body.castShadow = true;
+        beaver.add(body);
+
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.9, 48, 48), furMat);
+        head.position.y = 0.65;
+        head.scale.set(1.05, 0.95, 1);
+        head.castShadow = true;
+        beaver.add(head);
+
+        // Muzzle (Small rounded muzzle)
+        const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.3, 32, 32), muzzleMat);
+        muzzle.position.set(0, 0.52, 0.88);
+        muzzle.scale.set(1.1, 0.85, 0.7);
+        beaver.add(muzzle);
+
+        // Nose
+        const nose = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), blackMat);
+        nose.position.set(0, 0.75, 1.05);
+        nose.scale.set(1, 0.8, 0.6);
+        beaver.add(nose);
+
+        // Eyes (Closed relaxed arcs)
+        const eyeGeom = new THREE.TorusGeometry(0.09, 0.012, 8, 16, Math.PI);
+        const eyeL = new THREE.Mesh(eyeGeom, blackMat);
+        eyeL.position.set(-0.28, 0.95, 0.85);
+        eyeL.rotation.x = Math.PI / 1.15;
+        beaver.add(eyeL);
+        const eyeR = new THREE.Mesh(eyeGeom, blackMat);
+        eyeR.position.set(0.28, 0.95, 0.85);
+        eyeR.rotation.x = Math.PI / 1.15;
+        beaver.add(eyeR);
+
+        // Ears
+        const earGeom = new THREE.SphereGeometry(0.12, 16, 16);
+        const earL = new THREE.Mesh(earGeom, darkMat);
+        earL.position.set(-0.6, 1.3, 0.1);
+        beaver.add(earL);
+        const earR = new THREE.Mesh(earGeom, darkMat);
+        earR.position.set(0.6, 1.3, 0.1);
+        beaver.add(earR);
+
+        // Arms/Hands (Small dark paws resting on belly)
+        const handGeom = new THREE.SphereGeometry(0.16, 24, 24);
+        const handL = new THREE.Mesh(handGeom, darkMat);
+        handL.position.set(-0.4, 0.2, 0.92);
+        handL.scale.set(1.1, 0.8, 1.1);
+        handL.rotation.set(0, 0.2, 0.4);
+        handL.castShadow = true;
+        beaver.add(handL);
+
+        const handR = new THREE.Mesh(handGeom, darkMat);
+        handR.position.set(0.4, 0.2, 0.92);
+        handR.scale.set(1.1, 0.8, 1.1);
+        handR.rotation.set(0, -0.2, -0.4);
+        handR.castShadow = true;
+        beaver.add(handR);
+
+        // Feet (Pudgy dark feet)
+        const footGeom = new THREE.SphereGeometry(0.25, 16, 16);
+        const footL = new THREE.Mesh(footGeom, darkMat);
+        footL.position.set(-0.65, -0.9, 0.65);
+        footL.scale.set(1.3, 0.6, 1.6);
+        beaver.add(footL);
+        const footR = new THREE.Mesh(footGeom, darkMat);
+        footR.position.set(0.65, -0.9, 0.65);
+        footR.scale.set(1.3, 0.6, 1.6);
+        beaver.add(footR);
+
+        // Tail
+        const tail = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.15, 1.8), darkMat);
+        tail.position.set(-0.8, -0.8, -0.6);
+        tail.rotation.set(0.3, 0, 0.2);
+        tail.castShadow = true;
+        beaver.add(tail);
+
+        scene.add(beaver);
+
+        // Floor
+        floor = new THREE.Mesh(
+            new THREE.PlaneGeometry(40, 40),
+            new THREE.MeshStandardMaterial({ color: 0x1a1a1e, roughness: 1 })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -1.2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Lighting System
+        ambientLight = new THREE.AmbientLight(0xffffff, 0.08);
+        scene.add(ambientLight);
+
+        mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        mainLight.position.set(0, 3, 8);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 1024;
+        mainLight.shadow.mapSize.height = 1024;
+        mainLight.shadow.camera.near = 0.5;
+        mainLight.shadow.camera.far = 20;
+        mainLight.shadow.bias = -0.005;
+        scene.add(mainLight);
+
+        window.addEventListener('resize', onWindowResize);
+        setupInteraction();
+        animate();
+    }
+
+    function onWindowResize() {
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    let isDragging = false, prevX = 0;
+    function setupInteraction() {
+        container.onmousedown = (e) => { isDragging = true; prevX = e.clientX; };
+        window.onmouseup = () => isDragging = false;
+        window.onmousemove = (e) => {
+            if (!isDragging) return;
+            beaver.rotation.y += (e.clientX - prevX) * 0.01;
+            prevX = e.clientX;
+        };
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+
+    const info = document.getElementById('feedback');
+
+    function updateLab(mode, val) {
+        mainLight.intensity = 2.0;
+        mainLight.shadow.radius = 1;
+        ambientLight.intensity = 0.08;
+
+        if (mode === 'direction') {
+            document.querySelectorAll('[data-dir]').forEach(b => b.classList.toggle('active', b.dataset.dir === val));
+            switch(val) {
+                case 'front': 
+                    mainLight.position.set(0, 3, 8); 
+                    info.innerHTML = "<strong>Front Lighting:</strong> Direct light on face and belly. Highlights the muzzle while minimizing deep shadows."; 
+                    break;
+                case 'side': 
+                    mainLight.position.set(8, 2, 2); 
+                    info.innerHTML = "<strong>Side Lighting:</strong> Strong contrast reveals the beaver's rounded pear-shaped body and texture."; 
+                    break;
+                case 'back': 
+                    mainLight.position.set(0, 2, -10); 
+                    info.innerHTML = "<strong>Backlighting:</strong> Light catches the ears and tail edges, creating a glowing silhouette."; 
+                    break;
+                case 'top': 
+                    mainLight.position.set(0, 10, 0); 
+                    info.innerHTML = "<strong>Top Lighting:</strong> High drama. Shadows are cast downwards onto the snout and paws."; 
+                    break;
+            }
+        }
+
+        if (mode === 'quality') {
+            document.querySelectorAll('[data-quality]').forEach(b => b.classList.toggle('active', b.dataset.quality === val));
+            mainLight.position.set(6, 6, 6); 
+            if (val === 'hard') {
+                mainLight.shadow.radius = 0; 
+                mainLight.intensity = 3.0; 
+                info.innerHTML = "<strong>Hard Light:</strong> Small source, razor-sharp shadows. Look at the crisp line where the shadow meets the light.";
+            } else {
+                mainLight.shadow.radius = 25; 
+                mainLight.intensity = 1.4;
+                ambientLight.intensity = 0.5; 
+                info.innerHTML = "<strong>Soft Light:</strong> Diffused source. Shadows are now a gentle gradient, making the beaver look soft and professional.";
+            }
+        }
+
+        if (mode === 'window') {
+            document.querySelectorAll('[data-window]').forEach(b => b.classList.toggle('active', b.dataset.window === val));
+            mainLight.shadow.radius = 15;
+            ambientLight.intensity = 0.3;
+            switch(val) {
+                case 'facing': 
+                    mainLight.position.set(0, 4, 10); 
+                    info.innerHTML = "<strong>Facing Window:</strong> Subject is bathed in natural front light. Flattering for showing off the rounded muzzle."; 
+                    break;
+                case 'side': 
+                    mainLight.position.set(10, 2, 2); 
+                    info.innerHTML = "<strong>Side-On Window:</strong> Classic lighting. Shadows wrap softly around the rounded belly."; 
+                    break;
+                case 'behind': 
+                    mainLight.position.set(0, 2, -10); 
+                    info.innerHTML = "<strong>Window Behind:</strong> High mood. The beaver glows with a rim light against the bright window."; 
+                    break;
+            }
+        }
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = btn.dataset.tab;
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            document.getElementById(`tab-${tab}-controls`).style.display = 'block';
+            if(tab == 1) updateLab('direction', 'front');
+            if(tab == 2) updateLab('quality', 'hard');
+            if(tab == 3) updateLab('window', 'facing');
+        };
+    });
+
+    document.querySelectorAll('[data-dir]').forEach(b => b.onclick = () => updateLab('direction', b.dataset.dir));
+    document.querySelectorAll('[data-quality]').forEach(b => b.onclick = () => updateLab('quality', b.dataset.quality));
+    document.querySelectorAll('[data-window]').forEach(b => b.onclick = () => updateLab('window', b.dataset.window));
+
+    window.onload = init3D;
+</script>
+
+  <!-- ==== Phase 0 auto-tracker (injected by deploy tool) ==== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-IEvx56ysu5GhKlOU-a-6jD7rUiY17nM",
+      authDomain: "phase0-activity-analytics.firebaseapp.com",
+      projectId: "phase0-activity-analytics",
+    };
+    const ACTIVITY_ID = "comm2961-lighting-lab";
+    const SEMESTER = "2026S2";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getAnonId() {
+      let id = localStorage.getItem("phase0_anon_id");
+      if (!id) { id = "anon-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("phase0_anon_id", id); }
+      return id;
+    }
+    const anonId = getAnonId();
+    const sessionStart = Date.now();
+    let interactionCount = 0;
+
+    function sendEvent(eventType, extra) {
+      addDoc(collection(db, "phase0_events"), {
+        activity_id: ACTIVITY_ID, semester: SEMESTER, anon_id: anonId, event_type: eventType,
+        client_timestamp: new Date().toISOString(), server_timestamp: serverTimestamp(),
+        seconds_since_open: Math.round((Date.now() - sessionStart) / 1000), extra: extra || "",
+      }).catch(() => {});
+    }
+
+    sendEvent("open");
+
+    // Generic auto-tracking: explicit data-track wins, else id/name/text is used as the label.
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("button, a, [role='button'], input[type='submit']");
+      if (!el) return;
+      const label = el.getAttribute("data-track") || el.id || (el.textContent || "").trim().slice(0, 40) || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label);
+    });
+    document.addEventListener("change", function (e) {
+      const el = e.target;
+      if (!(el.tagName === "SELECT" || (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")))) return;
+      const label = el.getAttribute("data-track") || el.id || el.name || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label + "=" + el.value);
+    });
+
+    window.addEventListener("beforeunload", function () {
+      sendEvent("close", "total_interactions=" + interactionCount);
+    });
+  </script>
+  
+</body>
+</html>
