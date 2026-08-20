@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photography Simulator</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            navy: '#000054',
+                            'navy-soft': '#5a63b8',
+                            yellow: '#fac800',
+                            bg: '#f4f6ff',
+                            surface: '#ffffff',
+                            border: '#e3e6f4',
+                            text: '#2b2f7f',
+                            muted: '#6a6f95',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Import Maps Polyfill -->
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+    
+    <!-- Import Map for React, Three.js, and Fiber -->
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "three": "https://esm.sh/three@0.160.0",
+            "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.15.12?external=react,react-dom,three",
+            "@react-three/drei": "https://esm.sh/@react-three/drei@9.96.1?external=react,react-dom,three,@react-three/fiber",
+            "lucide-react": "https://esm.sh/lucide-react@0.323.0?external=react"
+        }
+    }
+    </script>
+    
+    <!-- Babel for in-browser JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        body { margin: 0; padding: 0; background-color: #f4f6ff; }
+        #root { height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel" data-type="module">
+        import React, { useState, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { Canvas, useFrame } from '@react-three/fiber';
+        import { OrbitControls } from '@react-three/drei';
+        import * as THREE from 'three';
+        import { Camera, Maximize, Info } from 'lucide-react';
+
+        const SIZES = [
+          'Extreme Wide Shot',
+          'Wide Shot',
+          'Full Body Shot',
+          'Medium Shot',
+          'Close-Up',
+          'Extreme Close-Up'
+        ];
+
+        const ANGLES = [
+          'Top-down view',
+          'High-angle shot',
+          'Eye-level shot',
+          'Low-angle (hero) shot',
+        ];
+
+        function getCameraTransform(shotSize, angle) {
+          const sizes = {
+            'Extreme Close-Up': { dist: 0.4, ty: 1.6 },
+            'Close-Up': { dist: 0.8, ty: 1.45 },
+            'Medium Shot': { dist: 1.8, ty: 1.1 },
+            'Full Body Shot': { dist: 3.5, ty: 0.8 },
+            'Wide Shot': { dist: 7.0, ty: 0.8 },
+            'Extreme Wide Shot': { dist: 12.0, ty: 0.8 },
+          };
+
+          const angles = {
+            'Top-down view': 89 * Math.PI / 180,
+            'High-angle shot': 35 * Math.PI / 180,
+            'Eye-level shot': 0,
+            'Low-angle (hero) shot': -35 * Math.PI / 180,
+          };
+
+          const { dist, ty } = sizes[shotSize] || sizes['Medium Shot'];
+          const elev = angles[angle] ?? 0;
+
+          let desiredY = ty + dist * Math.sin(elev);
+          let actualY = Math.max(0.05, desiredY);
+          
+          let dy = actualY - ty;
+          let actualZ = Math.sqrt(Math.max(0.001, dist * dist - dy * dy));
+
+          return {
+            position: [0, actualY, actualZ],
+            target: [0, ty, 0]
+          };
+        }
+
+        function Humanoid() {
+          return (
+            <group>
+              {/* Head */}
+              <mesh position={[0, 1.6, 0]} castShadow>
+                <sphereGeometry args={[0.15, 32, 32]} />
+                <meshStandardMaterial color="#6a6f95" />
+              </mesh>
+              {/* Neck */}
+              <mesh position={[0, 1.4, 0]} castShadow>
+                <cylinderGeometry args={[0.05, 0.05, 0.1, 16]} />
+                <meshStandardMaterial color="#6a6f95" />
+              </mesh>
+              {/* Torso */}
+              <mesh position={[0, 1.05, 0]} castShadow>
+                <cylinderGeometry args={[0.2, 0.15, 0.6, 32]} />
+                <meshStandardMaterial color="#5a63b8" />
+              </mesh>
+              {/* Left Arm */}
+              <mesh position={[-0.28, 1.05, 0]} rotation={[0, 0, 0.1]} castShadow>
+                <cylinderGeometry args={[0.06, 0.05, 0.6, 16]} />
+                <meshStandardMaterial color="#6a6f95" />
+              </mesh>
+              {/* Right Arm */}
+              <mesh position={[0.28, 1.05, 0]} rotation={[0, 0, -0.1]} castShadow>
+                <cylinderGeometry args={[0.06, 0.05, 0.6, 16]} />
+                <meshStandardMaterial color="#6a6f95" />
+              </mesh>
+              {/* Left Leg */}
+              <mesh position={[-0.1, 0.4, 0]} castShadow>
+                <cylinderGeometry args={[0.07, 0.06, 0.8, 16]} />
+                <meshStandardMaterial color="#2b2f7f" />
+              </mesh>
+              {/* Right Leg */}
+              <mesh position={[0.1, 0.4, 0]} castShadow>
+                <cylinderGeometry args={[0.07, 0.06, 0.8, 16]} />
+                <meshStandardMaterial color="#2b2f7f" />
+              </mesh>
+            </group>
+          );
+        }
+
+        function SceneContent() {
+          return (
+            <React.Fragment>
+              <ambientLight intensity={0.6} />
+              <directionalLight 
+                position={[5, 10, 5]} 
+                intensity={1.5} 
+                castShadow 
+                shadow-mapSize={[1024, 1024]} 
+              />
+              <directionalLight position={[-5, 5, -5]} intensity={0.5} />
+              <Humanoid />
+              <gridHelper args={[20, 20, '#e3e6f4', '#f4f6ff']} position={[0, 0.001, 0]} />
+              <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+                <planeGeometry args={[50, 50]} />
+                <meshStandardMaterial color="#ffffff" />
+              </mesh>
+              <fog attach="fog" args={['#f4f6ff', 5, 25]} />
+            </React.Fragment>
+          );
+        }
+
+        function AnimatedCamera({ position, target }) {
+          const vecPos = new THREE.Vector3();
+          const vecTarget = new THREE.Vector3();
+          const currentTarget = useRef(new THREE.Vector3(...target));
+
+          useFrame((state, delta) => {
+            vecPos.set(...position);
+            vecTarget.set(...target);
+            
+            state.camera.position.lerp(vecPos, 5 * delta);
+            currentTarget.current.lerp(vecTarget, 5 * delta);
+            state.camera.lookAt(currentTarget.current);
+          });
+
+          return null;
+        }
+
+        function AnimatedCameraModel({ position, target }) {
+          const group = useRef(null);
+          const vecPos = new THREE.Vector3();
+          const vecTarget = new THREE.Vector3();
+          const currentTarget = useRef(new THREE.Vector3(...target));
+
+          useFrame((state, delta) => {
+            if (group.current) {
+              vecPos.set(...position);
+              vecTarget.set(...target);
+              
+              group.current.position.lerp(vecPos, 5 * delta);
+              currentTarget.current.lerp(vecTarget, 5 * delta);
+              group.current.lookAt(currentTarget.current);
+            }
+          });
+
+          return (
+            <group ref={group}>
+              {/* Camera Body */}
+              <mesh position={[0, 0, 0.1]}>
+                <boxGeometry args={[0.3, 0.2, 0.3]} />
+                <meshStandardMaterial color="#fac800" />
+              </mesh>
+              {/* Lens */}
+              <mesh position={[0, 0, -0.1]} rotation={[Math.PI / 2, 0, 0]}>
+                <cylinderGeometry args={[0.1, 0.1, 0.15, 16]} />
+                <meshStandardMaterial color="#000054" />
+              </mesh>
+              {/* View Cone */}
+              <mesh position={[0, 0, -0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+                <coneGeometry args={[0.4, 1, 16]} />
+                <meshStandardMaterial color="#fac800" transparent opacity={0.3} depthWrite={false} />
+              </mesh>
+            </group>
+          );
+        }
+
+        function App() {
+          const [shotSize, setShotSize] = useState('Medium Shot');
+          const [angle, setAngle] = useState('Eye-level shot');
+
+          const { position, target } = getCameraTransform(shotSize, angle);
+
+          return (
+            <div className="min-h-screen bg-white text-brand-text p-4 md:p-6 font-sans flex flex-col">
+              
+              {/* Top Section: Views (Side by Side, ~45% height) */}
+              <div className="flex flex-col md:flex-row gap-4 h-[45vh] min-h-[300px] shrink-0">
+                {/* Output View */}
+                <div className="flex-1 bg-brand-surface rounded-2xl overflow-hidden relative shadow-lg border-4 border-brand-navy">
+<div className="absolute top-4 left-4 z-10 bg-[#000054] backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-2 border border-[#000054] text-[#ffffff]">
+  Camera Output
+</div>
+                  <Canvas shadows camera={{ fov: 45 }} onCreated={({ scene }) => { scene.background = new THREE.Color('#f4f6ff') }}>
+                    <SceneContent />
+                    <AnimatedCamera position={position} target={target} />
+                  </Canvas>
+                </div>
+                
+                {/* Scene View */}
+                <div className="flex-1 bg-brand-surface rounded-2xl overflow-hidden relative shadow-md border border-brand-border">
+                  <div className="absolute top-4 left-4 z-10 bg-brand-surface/80 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-medium border border-brand-border text-brand-navy">
+                    Scene Perspective 
+                  </div>
+                  <Canvas shadows camera={{ position: [6, 4, 6], fov: 50 }} onCreated={({ scene }) => { scene.background = new THREE.Color('#f4f6ff') }}>
+                    <SceneContent />
+                    <AnimatedCameraModel position={position} target={target} />
+                    <OrbitControls target={[0, 1, 0]} makeDefault />
+                  </Canvas>
+                </div>
+              </div>
+
+              {/* Bottom Section: Controls */}
+              <div className="mt-4 h-64 bg-brand-surface rounded-2xl p-5 shadow-md border border-brand-border flex flex-col gap-4 overflow-y-auto">
+                
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Camera Angle */}
+                  <div>
+                    <h2 className="text-lg font-semibold mb-3 text-brand-navy">
+  Camera Angle
+</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {ANGLES.map(a => (
+                        <button 
+  key={a} 
+  onClick={() => setAngle(a)} 
+  className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border ${
+    angle === a 
+      ? 'bg-[#000054] text-[#ffffff] border-[#000054] shadow-md' 
+      : 'bg-brand-bg border-transparent text-brand-muted hover:bg-brand-border hover:text-[#000054]'
+  }`}
+>
+  {a}
+</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Shot Size */}
+                  <div>
+                    <h2 className="text-lg font-semibold mb-3 text-brand-navy">
+  Shot Size
+</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {SIZES.map(s => (
+                        <button 
+                          key={s} 
+                          onClick={() => setShotSize(s)} 
+                          className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border ${
+                            shotSize === s 
+                              ? 'bg-brand-yellow text-brand-navy border-brand-yellow shadow-md' 
+                              : 'bg-brand-bg border-transparent text-brand-muted hover:bg-brand-border hover:text-brand-navy'
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+
+  <!-- ==== Phase 0 auto-tracker (injected by deploy tool) ==== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-IEvx56ysu5GhKlOU-a-6jD7rUiY17nM",
+      authDomain: "phase0-activity-analytics.firebaseapp.com",
+      projectId: "phase0-activity-analytics",
+    };
+    const ACTIVITY_ID = "grap3033-9-1-simulation-camera";
+    const SEMESTER = "2026S2";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getAnonId() {
+      let id = localStorage.getItem("phase0_anon_id");
+      if (!id) { id = "anon-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("phase0_anon_id", id); }
+      return id;
+    }
+    const anonId = getAnonId();
+    const sessionStart = Date.now();
+    let interactionCount = 0;
+
+    function sendEvent(eventType, extra) {
+      addDoc(collection(db, "phase0_events"), {
+        activity_id: ACTIVITY_ID, semester: SEMESTER, anon_id: anonId, event_type: eventType,
+        client_timestamp: new Date().toISOString(), server_timestamp: serverTimestamp(),
+        seconds_since_open: Math.round((Date.now() - sessionStart) / 1000), extra: extra || "",
+      }).catch(() => {});
+    }
+
+    sendEvent("open");
+
+    // Generic auto-tracking: explicit data-track wins, else id/name/text is used as the label.
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("button, a, [role='button'], input[type='submit']");
+      if (!el) return;
+      const label = el.getAttribute("data-track") || el.id || (el.textContent || "").trim().slice(0, 40) || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label);
+    });
+    document.addEventListener("change", function (e) {
+      const el = e.target;
+      if (!(el.tagName === "SELECT" || (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")))) return;
+      const label = el.getAttribute("data-track") || el.id || el.name || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label + "=" + el.value);
+    });
+
+    window.addEventListener("beforeunload", function () {
+      sendEvent("close", "total_interactions=" + interactionCount);
+    });
+  </script>
+  
+</body>
+</html>
