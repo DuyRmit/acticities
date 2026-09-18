@@ -1,0 +1,2803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creating Bespoke Learning Activities | Higher Education Horizon 2026</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React 18 & Babel for Vending Machine Simulator -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.20/babel.min.js"></script>
+
+  <!-- Fonts: Lato for clean institutional typography, Orbitron & JetBrains Mono for LCD/Keypad -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@600;800;900&family=Lato:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Lato', '"Helvetica Neue"', 'Helvetica', 'Arial', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+            canvas: ['Lato', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+            lcd: ['Orbitron', 'sans-serif'],
+          },
+          colors: {
+            rmit: {
+              red: '#E60028',
+              blue: '#000054',
+              yellow: '#FAC800',
+              gray: '#595959',
+              lightbg: '#F8FAFC',
+              border: '#CBD5E1',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Accessible baseline typography */
+    html, body {
+      font-family: 'Lato', "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #1E293B;
+      background-color: #F8FAFC;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    *:focus-visible {
+      outline: 2px solid #000054;
+      outline-offset: 2px;
+    }
+
+    /* Glass glare for vending machine */
+    .glass-glare {
+      background: linear-gradient(135deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 50%, transparent 50.1%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* LCD scanlines */
+    .scanlines {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                  linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 255, 0, 0.04));
+      background-size: 100% 4px, 6px 100%;
+    }
+
+    /* Backlight glows */
+    .neon-glow-pink { box-shadow: 0 0 12px rgba(236, 72, 153, 0.35), inset 0 0 12px rgba(236, 72, 153, 0.15); }
+    .neon-glow-cyan { box-shadow: 0 0 12px rgba(6, 182, 212, 0.35), inset 0 0 12px rgba(6, 182, 212, 0.15); }
+    .neon-glow-yellow { box-shadow: 0 0 12px rgba(234, 179, 8, 0.35), inset 0 0 12px rgba(234, 179, 8, 0.15); }
+    .neon-glow-white { box-shadow: 0 0 12px rgba(255, 255, 255, 0.2), inset 0 0 12px rgba(255, 255, 255, 0.1); }
+
+    /* Coil Rotation */
+    @keyframes rotateCoil {
+      0% { transform: scaleX(1) rotate(0deg); }
+      100% { transform: scaleX(1) rotate(360deg); }
+    }
+    .animate-coil {
+      animation: rotateCoil 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes pulseLed {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; filter: brightness(1.2); }
+    }
+    .animate-led-pulse {
+      animation: pulseLed 2s infinite ease-in-out;
+    }
+
+    /* Requirements Table Styling */
+    .req-table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    .req-table tr td, .req-table tr th {
+      padding: 12px 16px;
+      border: 1px solid #E2E8F0;
+      vertical-align: middle;
+      text-align: left;
+      font-size: 15px;
+    }
+    .req-table tr { background-color: #FFFFFF; }
+    .req-table th.header-req {
+      background-color: #F1F5F9;
+      color: #000054;
+      font-weight: bold;
+      width: 44%;
+    }
+    .req-table th.header-measurable {
+      background-color: #FAC800;
+      color: #000054;
+      font-weight: bold;
+      text-align: center;
+      width: 20%;
+    }
+    .req-table th.header-why {
+      background-color: #F1F5F9;
+      color: #000054;
+      font-weight: bold;
+      width: 36%;
+    }
+    .req-select {
+      padding: 7px 10px;
+      width: 100%;
+      border: 1px solid #CBD5E1;
+      background-color: #FFFFFF;
+      font-size: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .dropdown-container {
+      display: flex;
+      align-items: center;
+    }
+    .feedback-icon {
+      margin-left: 8px;
+      font-size: 16px;
+      visibility: hidden;
+      width: 18px;
+      font-weight: bold;
+    }
+    .req-row-correct .req-select {
+      background-color: #DCFCE7;
+      border-color: #16A34A;
+      color: #15803D;
+    }
+    .req-row-correct .feedback-icon {
+      visibility: visible;
+      color: #16A34A;
+    }
+    .req-row-incorrect .req-select {
+      background-color: #FEE2E2;
+      border-color: #DC2626;
+      color: #B91C1C;
+    }
+    .req-row-incorrect .feedback-icon {
+      visibility: visible;
+      color: #DC2626;
+    }
+    .feedback-cell {
+      font-size: 14px;
+      line-height: 1.4;
+      color: #334155;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <header class="bg-white border-b-2 border-b-[#E60028] sticky top-0 z-50 shadow-sm">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand & Title -->
+      <div class="cursor-pointer" onclick="switchTab('home')">
+        <span class="text-xs font-bold tracking-wider uppercase text-[#000054]">Higher Education Horizon 2026</span>
+        <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+          Creating Bespoke Learning Activities
+        </h1>
+      </div>
+
+      <!-- Navigation Bar -->
+      <nav aria-label="Workshop Phases" class="flex items-center space-x-1 sm:space-x-2 bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs sm:text-sm">
+        <button onclick="switchTab('home')" id="tabBtnHome" class="px-3 sm:px-3.5 py-1.5 rounded-md font-bold text-white bg-[#000054] transition shadow-sm">
+          Overview
+        </button>
+        <button onclick="switchTab('sequence')" id="tabBtnSequence" class="px-3 sm:px-3.5 py-1.5 rounded-md font-medium text-slate-700 hover:text-[#000054] hover:bg-slate-200 transition">
+          Phase 1: Experience
+        </button>
+        <button onclick="switchTab('challenge')" id="tabBtnChallenge" class="px-3 sm:px-3.5 py-1.5 rounded-md font-medium text-slate-700 hover:text-[#000054] hover:bg-slate-200 transition">
+          Phase 2: Challenge
+        </button>
+        <button onclick="switchTab('studio')" id="tabBtnStudio" class="px-3 sm:px-3.5 py-1.5 rounded-md font-medium text-slate-700 hover:text-[#000054] hover:bg-slate-200 transition">
+          Phase 3: Prompt Tool
+        </button>
+        <button onclick="switchTab('showcase')" id="tabBtnShowcase" class="px-3 sm:px-3.5 py-1.5 rounded-md font-medium text-slate-700 hover:text-[#000054] hover:bg-slate-200 transition">
+          Phase 4: Showcase &amp; Embed
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Notification Toast Container -->
+  <div id="toastBox" class="fixed bottom-5 right-5 z-50 pointer-events-none flex flex-col gap-2"></div>
+
+  <!-- Main Container -->
+  <main class="max-w-[1600px] w-full mx-auto px-4 sm:px-8 py-8 flex-1 font-canvas">
+
+    <!-- ===================================================================== -->
+    <!-- HOMEPAGE: 4-PHASE WORKSHOP OVERVIEW                                  -->
+    <!-- ===================================================================== -->
+    <div id="tabHome" class="space-y-8">
+      
+      <!-- Welcome Intro Banner -->
+      <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div class="inline-block bg-[#FAC800] text-[#000054] text-xs font-bold uppercase tracking-wider px-3 py-1 rounded">
+          Workshop Toolkit
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-bold text-[#000054]">
+          Creating Bespoke Learning Activities
+        </h2>
+        <p class="text-slate-600 text-base sm:text-lg leading-relaxed max-w-4xl">
+          An interactive toolkit to experience active learning sequences, identify friction gaps in course drafts, engineer simulation prompts with AI, and embed finished activities back into your course.
+        </p>
+      </div>
+
+      <!-- 4 Phases Grid Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        
+        <!-- Phase 1 Card -->
+        <div onclick="switchTab('sequence')" class="bg-white p-6 rounded-xl border-2 border-slate-200 hover:border-[#000054] hover:shadow-md transition cursor-pointer flex flex-col justify-between space-y-4 group">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-[#000054] bg-blue-50 px-2.5 py-1 rounded">Phase 1</span>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 group-hover:text-[#000054] transition">Experience the Sequence</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              Experience a complete active learning module from the student's perspective.
+            </p>
+          </div>
+          <div class="pt-2 flex items-center text-sm font-bold text-[#000054] group-hover:underline">
+            Start Phase 1 &rarr;
+          </div>
+        </div>
+
+        <!-- Phase 2 Card -->
+        <div onclick="switchTab('challenge')" class="bg-white p-6 rounded-xl border-2 border-slate-200 hover:border-[#000054] hover:shadow-md transition cursor-pointer flex flex-col justify-between space-y-4 group">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-2.5 py-1 rounded">Phase 2</span>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 group-hover:text-[#000054] transition">The Challenge: Review Drafts</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              Review an unfinished course draft with your group, identify learning bottlenecks, and brainstorm active learning ideas.
+            </p>
+          </div>
+          <div class="pt-2 flex items-center text-sm font-bold text-[#000054] group-hover:underline">
+            Start Phase 2 &rarr;
+          </div>
+        </div>
+
+        <!-- Phase 3 Card -->
+        <div onclick="switchTab('studio')" class="bg-white p-6 rounded-xl border-2 border-slate-200 hover:border-[#000054] hover:shadow-md transition cursor-pointer flex flex-col justify-between space-y-4 group">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2.5 py-1 rounded">Phase 3</span>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 group-hover:text-[#000054] transition">AI Prompt Tool: Build Simulation</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              Clarify your learning goal and friction moment, generate a prompt, and build your simulation.
+            </p>
+          </div>
+          <div class="pt-2 flex items-center text-sm font-bold text-[#000054] group-hover:underline">
+            Start Phase 3 &rarr;
+          </div>
+        </div>
+
+        <!-- Phase 4 Card -->
+        <div onclick="switchTab('showcase')" class="bg-white p-6 rounded-xl border-2 border-slate-200 hover:border-[#000054] hover:shadow-md transition cursor-pointer flex flex-col justify-between space-y-4 group">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded">Phase 4</span>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 group-hover:text-[#000054] transition">Showcase &amp; Embed Simulation</h3>
+            <p class="text-slate-600 text-sm leading-relaxed">
+              Share your simulation on the Padlet wall and embed it directly into your course sequence.
+            </p>
+          </div>
+          <div class="pt-2 flex items-center text-sm font-bold text-[#000054] group-hover:underline">
+            Start Phase 4 &rarr;
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- PHASE 1: EXPERIENCE THE SEQUENCE                                     -->
+    <!-- ===================================================================== -->
+    <div id="tabSequence" class="hidden space-y-6">
+
+      <!-- Consistent Header -->
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="inline-block bg-[#FAC800] text-[#000054] text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded">
+            Phase 1 of 4
+          </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-[#000054] mt-1">
+            Phase 1: Experience the Sequence
+          </h2>
+          <p class="text-slate-600 text-sm mt-0.5">
+            Experience a complete active learning module from the student's perspective.
+          </p>
+        </div>
+      </div>
+
+      <!-- Canvas Chrome Mock Container -->
+      <div class="canvas-card rounded-lg overflow-hidden border border-slate-300 shadow-sm bg-white">
+        
+        <!-- Clean Banner Bar -->
+        <div class="bg-gradient-to-r from-[#000054] via-[#050570] to-[#0d1852] p-6 sm:p-7 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between border-b-4 border-[#E60028]">
+          <div class="space-y-1">
+            <div class="inline-block bg-[#FAC800] text-[#000054] text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded shadow-sm">
+              Pre-class &gt; 2.1
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+              Week 2
+            </h2>
+            <h3 class="text-lg sm:text-xl font-bold text-slate-100">
+              Understanding User Requirements
+            </h3>
+          </div>
+        </div>
+
+        <!-- Canvas Body Content Area -->
+        <div class="p-6 sm:p-10 space-y-8 text-slate-800">
+          
+          <!-- SECTION 1: THE CHALLENGES IN CAPTURING USER NEEDS -->
+          <section class="space-y-4">
+            <p class="text-slate-600 text-[15px] leading-relaxed">
+              Now that we know the process of designing and engineering a new product. Let's look at the first step: how we capture the User Needs.
+            </p>
+
+            <h3 class="text-xl sm:text-2xl font-bold text-[#000054]">
+              The Challenges in Capturing User Needs
+            </h3>
+
+            <p class="text-slate-700 text-[15px] leading-relaxed">
+              Before we write the user requirements, we must look at the System Context. Using our vending machine example, think about how it is actually used.
+            </p>
+
+            <!-- Yellow Activity Callout Box (Duration removed) -->
+            <div class="flex items-start gap-3 p-3.5 rounded-lg bg-amber-50/80 border border-amber-200 text-slate-800 text-sm">
+              <div class="w-7 h-7 rounded-full bg-[#FAC800] text-[#000054] flex items-center justify-center flex-shrink-0 font-bold shadow-sm text-xs">
+                💬
+              </div>
+              <div>
+                <p class="font-bold text-[#000054]">Consider your reaction after receiving a client brief</p>
+              </div>
+            </div>
+
+            <!-- Poll Scenario Grid -->
+            <div class="pt-2">
+              <h4 class="text-base font-bold text-slate-900 mb-2">Results</h4>
+              
+              <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                
+                <!-- Left: Poll Question & Distinct Options -->
+                <div class="md:col-span-8 space-y-3 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                  <p class="text-slate-800 text-sm leading-relaxed">
+                    <strong>Imagine your team just received this official project brief from a client:</strong><br />
+                    <em class="text-slate-700">"We need a modern, user-friendly snack and drink machine installed in the campus building. It should be fast, reliable, convenient, and look sleek."</em>
+                  </p>
+
+                  <p class="text-slate-900 text-sm font-bold pt-1">
+                    When you receive a brief like this, how do you want to start engineering?
+                  </p>
+
+                  <!-- Poll Options -->
+                  <div class="space-y-2.5 pt-1" id="canvasPollContainer">
+                    
+                    <!-- Option A -->
+                    <div onclick="voteCanvasPoll('A')" class="p-3 rounded-lg border border-slate-200 hover:border-[#000054] hover:bg-slate-50 cursor-pointer transition relative overflow-hidden" id="pollOptA">
+                      <div class="flex justify-between items-center text-xs sm:text-sm font-medium relative z-10">
+                        <span>A. Accept the brief as is and start designing the machine immediately.</span>
+                        <span class="font-bold text-[#000054] ml-2" id="percentA">0%</span>
+                      </div>
+                      <div id="barA" class="absolute top-0 bottom-0 left-0 bg-blue-100 opacity-60 transition-all duration-500" style="width: 0%;"></div>
+                    </div>
+
+                    <!-- Option B -->
+                    <div onclick="voteCanvasPoll('B')" class="p-3 rounded-lg border border-slate-200 hover:border-[#000054] hover:bg-slate-50 cursor-pointer transition relative overflow-hidden" id="pollOptB">
+                      <div class="flex justify-between items-center text-xs sm:text-sm font-medium relative z-10">
+                        <span>B. Carry out a study based on a previous vending machine project to save time.</span>
+                        <span class="font-bold text-[#000054] ml-2" id="percentB">0%</span>
+                      </div>
+                      <div id="barB" class="absolute top-0 bottom-0 left-0 bg-blue-100 opacity-60 transition-all duration-500" style="width: 0%;"></div>
+                    </div>
+
+                    <!-- Option C (Best Practice) -->
+                    <div onclick="voteCanvasPoll('C')" class="p-3 rounded-lg border border-slate-200 hover:border-[#000054] hover:bg-slate-50 cursor-pointer transition relative overflow-hidden" id="pollOptC">
+                      <div class="flex justify-between items-center text-xs sm:text-sm font-medium relative z-10">
+                        <span>C. Ask the client clarifying questions to understand their context, environment, and user base.</span>
+                        <span class="font-bold text-[#000054] ml-2" id="percentC">0%</span>
+                      </div>
+                      <div id="barC" class="absolute top-0 bottom-0 left-0 bg-emerald-100 opacity-60 transition-all duration-500" style="width: 0%;"></div>
+                    </div>
+
+                    <!-- Option D -->
+                    <div onclick="voteCanvasPoll('D')" class="p-3 rounded-lg border border-slate-200 hover:border-[#000054] hover:bg-slate-50 cursor-pointer transition relative overflow-hidden" id="pollOptD">
+                      <div class="flex justify-between items-center text-xs sm:text-sm font-medium relative z-10">
+                        <span>D. Push the brief back to the client and demand a technical specification.</span>
+                        <span class="font-bold text-[#000054] ml-2" id="percentD">0%</span>
+                      </div>
+                      <div id="barD" class="absolute top-0 bottom-0 left-0 bg-blue-100 opacity-60 transition-all duration-500" style="width: 0%;"></div>
+                    </div>
+
+                  </div>
+
+                  <!-- Dynamic Option-Specific Feedback Box -->
+                  <div id="canvasPollFeedback" class="hidden mt-3 p-3.5 rounded-lg border text-xs sm:text-sm"></div>
+                </div>
+
+                <!-- Right: Authentic Context Photo -->
+                <div class="md:col-span-4 flex flex-col items-center">
+                  <div class="w-full rounded-xl overflow-hidden border border-slate-300 shadow-sm bg-slate-100">
+                    <img 
+                      src="https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=600&q=80" 
+                      alt="Student purchasing and collecting a drink from a vending machine on campus"
+                      class="w-full h-64 object-cover object-center"
+                      onerror="this.src='https://placehold.co/400x300/000054/ffffff?text=Vending+Machine+Interaction'"
+                    />
+                  </div>
+                  <span class="text-[11px] text-slate-500 mt-1.5 text-center">
+                    Observing physical posture, reach, payment, and retrieval ergonomics
+                  </span>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Canvas Callout Quote: Capturing a user's 'needs' is rarely straightforward -->
+            <div class="my-5 p-5 rounded-xl bg-slate-50 border-l-4 border-[#000054] border border-slate-200 text-slate-800 space-y-2">
+              <div class="flex items-center space-x-2 font-bold text-[#000054] text-sm sm:text-base">
+                <svg class="w-4 h-4 text-[#000054]" fill="currentColor" viewBox="0 0 20 20"><path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" /></svg>
+                <span>Capturing a user's "needs" is rarely straightforward.</span>
+              </div>
+              <p class="text-sm font-semibold text-slate-700">Think of a user requirement as a wish list:</p>
+              <ul class="list-disc pl-5 space-y-1.5 text-xs sm:text-sm text-slate-700">
+                <li>Users are not professionals who know exactly what they are after.</li>
+                <li>It is unreasonable to expect the user to provide an exact list of requirements or to adhere to it throughout the system's development.</li>
+                <li>The "requirements problem" always stems from the difficulty in identifying, interpreting, and understanding the most fundamental hopes of the user.</li>
+              </ul>
+            </div>
+
+          </section>
+
+          <!-- SECTION 2: HOW TO CAPTURE USER NEEDS & THE SIMULATOR -->
+          <section class="space-y-4 pt-4">
+            <h3 class="text-xl sm:text-2xl font-bold text-[#000054]">
+              How to Capture User Needs
+            </h3>
+            
+            <p class="text-slate-700 text-[15px] leading-relaxed">
+              For the vending machine system, you might have used it before. Imagine yourself as a user of it.
+            </p>
+
+            <!-- Yellow Activity Callout Box (Duration removed) -->
+            <div class="flex items-start gap-3 p-3.5 rounded-lg bg-amber-50/80 border border-amber-200 text-slate-800 text-sm">
+              <div class="w-7 h-7 rounded-full bg-[#FAC800] text-[#000054] flex items-center justify-center flex-shrink-0 font-bold shadow-sm text-xs">
+                🔍
+              </div>
+              <div>
+                <p class="font-bold text-[#000054]">Think about how you interact with the system and what you need from it.</p>
+              </div>
+            </div>
+
+            <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed">
+              Consider which buttons the user has to press, how they pay (cash, coin or make a digital purchase), how they pick up the product, whether they need a straw, what to do if the user needs to call for help/report, and whether to take change.
+            </p>
+
+            <!-- Vending Machine Simulator Container -->
+            <div class="my-6 p-3 sm:p-6 bg-slate-900/5 rounded-2xl border border-slate-300 flex justify-center items-center overflow-x-auto">
+              <div id="vending-machine-root" class="w-full flex justify-center py-2"></div>
+            </div>
+          </section>
+
+          <!-- SECTION 3: WRITING MEASURABLE USER REQUIREMENTS -->
+          <section class="space-y-4 pt-4">
+            <h3 class="text-xl sm:text-2xl font-bold text-[#000054]">
+              Writing Measurable User Requirements
+            </h3>
+
+            <p class="text-slate-700 text-[15px] leading-relaxed">
+              Finally, let's turn a "wish" into a "requirement". A good requirement must be <strong>Specific, Measurable, and Verifiable</strong>. It is very common to find this challenging when writing user requirements.
+            </p>
+
+            <!-- Yellow Activity Callout Box (Duration removed) -->
+            <div class="flex items-start gap-3 p-3.5 rounded-lg bg-amber-50/80 border border-amber-200 text-slate-800 text-sm">
+              <div class="w-7 h-7 rounded-full bg-[#FAC800] text-[#000054] flex items-center justify-center flex-shrink-0 font-bold shadow-sm text-xs">
+                ✏️
+              </div>
+              <div>
+                <p class="font-bold text-[#000054]">Test your skills in identifying measurable requirements.</p>
+              </div>
+            </div>
+
+            <!-- Measurable Requirements Table -->
+            <div class="overflow-x-auto rounded-lg border border-slate-300 shadow-sm bg-white">
+              <table class="req-table">
+                <thead>
+                  <tr>
+                    <th class="header-req">Written Requirements</th>
+                    <th class="header-measurable">Is it a measurable requirement?</th>
+                    <th class="header-why">Why?</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Row 1 -->
+                  <tr id="row-req-1">
+                    <td class="font-medium text-slate-800">It should accept many payments.</td>
+                    <td>
+                      <div class="dropdown-container">
+                        <select id="req-v3-1" data-correct="No" class="req-select" onchange="handleReqChange(this)">
+                          <option value="Select">Select...</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                        <span class="feedback-icon"></span>
+                      </div>
+                    </td>
+                    <td class="feedback-cell" data-feedback="The requirement is too vague. How many exactly?"></td>
+                  </tr>
+
+                  <!-- Row 2 -->
+                  <tr id="row-req-2">
+                    <td class="font-medium text-slate-800">The system shall dispense the selected product within 5 seconds of payment confirmation.</td>
+                    <td>
+                      <div class="dropdown-container">
+                        <select id="req-v3-2" data-correct="Yes" class="req-select" onchange="handleReqChange(this)">
+                          <option value="Select">Select...</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                        <span class="feedback-icon"></span>
+                      </div>
+                    </td>
+                    <td class="feedback-cell" data-feedback="We can use a stopwatch to 'verify' 5 seconds. 'Fast' is an opinion."></td>
+                  </tr>
+
+                  <!-- Row 3 -->
+                  <tr id="row-req-3">
+                    <td class="font-medium text-slate-800">The system shall support Cash, Visa, Mastercard, and Momo QR payments.</td>
+                    <td>
+                      <div class="dropdown-container">
+                        <select id="req-v3-3" data-correct="Yes" class="req-select" onchange="handleReqChange(this)">
+                          <option value="Select">Select...</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                        <span class="feedback-icon"></span>
+                      </div>
+                    </td>
+                    <td class="feedback-cell" data-feedback="We can test each specific payment method."></td>
+                  </tr>
+
+                  <!-- Row 4 -->
+                  <tr id="row-req-4">
+                    <td class="font-medium text-slate-800">The machine should be fast.</td>
+                    <td>
+                      <div class="dropdown-container">
+                        <select id="req-v3-4" data-correct="No" class="req-select" onchange="handleReqChange(this)">
+                          <option value="Select">Select...</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                        <span class="feedback-icon"></span>
+                      </div>
+                    </td>
+                    <td class="feedback-cell" data-feedback="The requirement is too vague. How can we know what counts as fast?"></td>
+                  </tr>
+
+                  <!-- Row 5 -->
+                  <tr id="row-req-5">
+                    <td class="font-medium text-slate-800">The system shall maintain internal storage temperature between 2°C and 5°C.</td>
+                    <td>
+                      <div class="dropdown-container">
+                        <select id="req-v3-5" data-correct="Yes" class="req-select" onchange="handleReqChange(this)">
+                          <option value="Select">Select...</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                        <span class="feedback-icon"></span>
+                      </div>
+                    </td>
+                    <td class="feedback-cell" data-feedback="We can measure the temperature with a sensor."></td>
+                  </tr>
+
+                  <!-- Row 6 -->
+                  <tr id="row-req-6">
+                    <td class="font-medium text-slate-800">The drinks should be cold.</td>
+                    <td>
+                      <div class="dropdown-container">
+                        <select id="req-v3-6" data-correct="No" class="req-select" onchange="handleReqChange(this)">
+                          <option value="Select">Select...</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                        <span class="feedback-icon"></span>
+                      </div>
+                    </td>
+                    <td class="feedback-cell" data-feedback="Requirement is too vague; need a measurable temperature."></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Table Buttons -->
+            <div class="flex items-center justify-end gap-3 pt-2">
+              <button onclick="saveReqAnswers()" class="px-4 py-2 bg-[#ccccdd] hover:bg-[#000054] hover:text-white text-[#000054] rounded font-bold text-xs sm:text-sm transition shadow-sm">
+                Save Answers
+              </button>
+              <button onclick="resetReqAnswers()" class="px-4 py-2 bg-[#fef4cc] hover:bg-[#fac800] text-[#000054] rounded font-bold text-xs sm:text-sm transition shadow-sm">
+                Start Over
+              </button>
+            </div>
+
+            <!-- Wrap-Up Paragraph (Australian English: practise) -->
+            <div class="pt-4">
+              <p class="text-slate-700 text-xs sm:text-sm leading-relaxed">
+                Good work! In class, we will collaborate on a client brief to practise identifying user needs for a complex engineering project. You will write the user requirements, which is a core part of your upcoming assessment.
+              </p>
+            </div>
+
+            <!-- Clear Navigation Footer -->
+            <div class="pt-6 flex items-center justify-between text-xs sm:text-sm font-semibold text-[#000054]">
+              <button onclick="switchTab('home')" class="px-4 py-2 rounded border border-slate-300 hover:bg-slate-100 flex items-center gap-1">
+                <span>&lt;</span> Previous: Overview
+              </button>
+              <button onclick="switchTab('challenge')" class="px-5 py-2.5 rounded bg-[#000054] text-white hover:bg-[#00003c] flex items-center gap-1.5 shadow-sm">
+                <span>Next: Phase 2 — The Challenge</span> <span>&gt;</span>
+              </button>
+            </div>
+
+          </section>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- PHASE 2: THE CHALLENGE (UNFINISHED PASSIVE SEQUENCES)                -->
+    <!-- ===================================================================== -->
+    <div id="tabChallenge" class="hidden space-y-6">
+      
+      <!-- Phase 2 Header -->
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="inline-block bg-[#FAC800] text-[#000054] text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded">
+            Phase 2 of 4
+          </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-[#000054] mt-1">
+            Phase 2: The Challenge
+          </h2>
+          <p class="text-slate-600 text-sm mt-0.5">
+            Review an unfinished passive course draft with your group, identify learning bottlenecks, and brainstorm active learning ideas.
+          </p>
+        </div>
+      </div>
+
+      <!-- STEP 1: CHOOSE THE TOPIC OPTION -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <h3 class="text-base sm:text-lg font-bold text-[#000054] flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-[#000054] text-white flex items-center justify-center text-xs">1</span>
+            <span>Step 1: Choose the topic option for your group to design the activities</span>
+          </h3>
+          <span class="text-xs text-slate-500 font-medium">You can also choose your own expertise topic</span>
+        </div>
+
+        <!-- 3 Distinguished Topic Cards with distinct visual identities -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          
+          <!-- Option 1: Indigo / Design -->
+          <button 
+            onclick="selectChallengeOption(1)" 
+            id="btnChallengeOpt1" 
+            class="p-5 text-left rounded-xl border-2 border-indigo-600 bg-indigo-50/70 text-slate-900 transition flex flex-col justify-between shadow-sm relative overflow-hidden"
+          >
+            <div class="w-1.5 absolute inset-y-0 left-0 bg-indigo-600"></div>
+            <div class="flex items-center justify-between w-full mb-1.5 pl-1">
+              <span class="text-sm font-bold text-indigo-700 uppercase tracking-wider">Option 1</span>
+              <span class="text-sm bg-white px-2.5 py-0.5 rounded border border-indigo-200 text-indigo-800 font-semibold">Design &amp; UI</span>
+            </div>
+            <span class="text-base sm:text-lg font-bold text-slate-900 pl-1">Colour Theory in Digital Design</span>
+            <span class="text-sm text-slate-700 font-medium mt-2 pl-1">Students designing a mobile app palette</span>
+          </button>
+
+          <!-- Option 2: Emerald / Business -->
+          <button 
+            onclick="selectChallengeOption(2)" 
+            id="btnChallengeOpt2" 
+            class="p-5 text-left rounded-xl border-2 border-slate-200 bg-white hover:border-emerald-300 text-slate-700 transition flex flex-col justify-between relative overflow-hidden"
+          >
+            <div class="w-1.5 absolute inset-y-0 left-0 bg-emerald-600 opacity-0 transition-opacity" id="accentBarOpt2"></div>
+            <div class="flex items-center justify-between w-full mb-1.5 pl-1">
+              <span class="text-sm font-bold text-emerald-700 uppercase tracking-wider">Option 2</span>
+              <span class="text-sm bg-white px-2.5 py-0.5 rounded border border-slate-200 text-slate-700 font-semibold">Business &amp; Mgmt</span>
+            </div>
+            <span class="text-base sm:text-lg font-bold text-slate-900 pl-1">Event Budget Planning</span>
+            <span class="text-sm text-slate-700 font-medium mt-2 pl-1">Managing cash flow &amp; contingency buffers</span>
+          </button>
+
+          <!-- Option 3: Amber / Media -->
+          <button 
+            onclick="selectChallengeOption(3)" 
+            id="btnChallengeOpt3" 
+            class="p-5 text-left rounded-xl border-2 border-slate-200 bg-white hover:border-amber-300 text-slate-700 transition flex flex-col justify-between relative overflow-hidden"
+          >
+            <div class="w-1.5 absolute inset-y-0 left-0 bg-amber-500 opacity-0 transition-opacity" id="accentBarOpt3"></div>
+            <div class="flex items-center justify-between w-full mb-1.5 pl-1">
+              <span class="text-sm font-bold text-amber-700 uppercase tracking-wider">Option 3</span>
+              <span class="text-sm bg-white px-2.5 py-0.5 rounded border border-slate-200 text-slate-700 font-semibold">Media &amp; Film</span>
+            </div>
+            <span class="text-base sm:text-lg font-bold text-slate-900 pl-1">Three-Point Studio Lighting</span>
+            <span class="text-sm text-slate-700 font-medium mt-2 pl-1">Crafting visual mood &amp; actor character</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: READ THROUGH THE SEQUENCE -->
+      <div class="space-y-2">
+        <h3 class="text-base sm:text-lg font-bold text-[#000054] flex items-center gap-2">
+          <span class="w-6 h-6 rounded-full bg-[#000054] text-white flex items-center justify-center text-xs">2</span>
+          <span>Step 2: Read through the sequence</span>
+        </h3>
+
+        <!-- Course Sequence Container with Minimal Page Banner -->
+        <div class="canvas-card rounded-xl border border-slate-300 shadow-sm bg-white overflow-hidden">
+          
+          <!-- Distinct Course Sequence Banner (Removed 'Needs Active Learning Spark' badge) -->
+          <div class="bg-gradient-to-r from-[#000054] via-[#00006e] to-[#0d1852] px-6 py-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-4 border-[#FAC800]">
+            <div>
+              <div class="inline-flex items-center gap-2 mb-1">
+                <span class="bg-[#FAC800] text-[#000054] text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
+                  Course Reading Sequence
+                </span>
+                <span class="bg-white/20 text-white text-[11px] font-semibold px-2 py-0.5 rounded">
+                  Unfinished Draft
+                </span>
+              </div>
+              <h4 class="text-lg sm:text-xl font-bold tracking-tight text-white" id="currentSequenceBanner">
+                Option 1: Colour Theory in Digital Design
+              </h4>
+            </div>
+          </div>
+
+          <!-- DRAFT OPTION 1 CONTENT (Australian English applied) -->
+          <div id="contentChallengeOpt1" class="p-6 sm:p-8 space-y-5 text-slate-800">
+            <div>
+              <h4 class="text-xl sm:text-2xl font-bold text-[#000054]">
+                Colour Theory in Digital Design
+              </h4>
+              <p class="text-slate-600 text-xs sm:text-sm mt-1">
+                Context: You are currently working in design teams to create a mobile app for campus students. Before finalising your high-fidelity user interface, work through this guide to understand how colour choices directly impact user experience and navigation.
+              </p>
+            </div>
+
+            <section class="space-y-2">
+              <h5 class="text-base font-bold text-slate-900">Why does colour matter?</h5>
+              <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed">
+                Have you ever visited a website and immediately felt overwhelmed, or struggled to read light-grey text on a white background? Colour isn’t just decoration—it quietly guides how people feel, where they look, and whether an app feels intuitive or exhausting to use.
+              </p>
+            </section>
+
+            <section class="space-y-2">
+              <h5 class="text-base font-bold text-slate-900">The Colour Wheel: Harmony &amp; Contrast</h5>
+              <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed">
+                You don’t need an art degree to build a great palette. Most everyday choices come down to two basic ideas:
+              </p>
+              <div class="space-y-2.5 pl-2">
+                <div class="p-3 rounded-lg bg-slate-50 border-l-4 border-[#000054] border border-slate-200">
+                  <p class="text-slate-800 text-sm leading-relaxed">
+                    <strong>Complementary Colours:</strong> These sit directly opposite each other on the colour wheel (like deep blue and bright orange). Because they clash in high contrast, they naturally grab attention. They’re fantastic for warning badges or a big "Submit" button you want no one to miss.
+                  </p>
+                </div>
+                <div class="p-3 rounded-lg bg-slate-50 border-l-4 border-indigo-400 border border-slate-200">
+                  <p class="text-slate-800 text-sm leading-relaxed">
+                    <strong>Analogous Colours:</strong> These sit right next to each other (like sky blue, teal, and soft green). They feel calm, cohesive, and easy on the eyes. They make great backgrounds because they don’t fight for attention.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section class="space-y-2">
+              <h5 class="text-base font-bold text-slate-900">The Catch: Contrast and Legibility</h5>
+              <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed">
+                A combination might look aesthetic to you, but if a student in bright sunlight or someone with colour vision differences can’t read it, the design fails. Good design always balances mood with readable contrast ratios.
+              </p>
+            </section>
+
+            <div class="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm font-medium">
+              (End of text. In the final assessment, students have to design a complete, accessible app landing page.)
+            </div>
+          </div>
+
+          <!-- DRAFT OPTION 2 CONTENT (Australian English applied) -->
+          <div id="contentChallengeOpt2" class="hidden p-6 sm:p-8 space-y-5 text-slate-800">
+            <div>
+              <h4 class="text-xl sm:text-2xl font-bold text-[#000054]">
+                Event Budget Planning
+              </h4>
+              <p class="text-slate-600 text-xs sm:text-sm mt-1">
+                Context: Your committee is organising a commercial campus event for 300 attendees. Before pitching your financial plan to the sponsors, review this foundational guide on managing fixed versus variable operational expenses.
+              </p>
+            </div>
+
+            <section class="space-y-2">
+              <h5 class="text-base font-bold text-slate-900">Where does all the money go?</h5>
+              <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed">
+                Organising an event is exciting until the bills arrive. The number-one reason campus festivals, charity fundraisers, or conferences run into trouble isn’t a lack of great ideas—it’s surprise costs that spiral out of control.
+              </p>
+            </section>
+
+            <section class="space-y-2">
+              <h5 class="text-base font-bold text-slate-900">Two Buckets: Fixed vs. Variable Costs</h5>
+              <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed">
+                To keep sanity and finances intact, event planners split expenses into two straightforward buckets:
+              </p>
+              <div class="space-y-2.5 pl-2">
+                <div class="p-3 rounded-lg bg-slate-50 border-l-4 border-[#000054] border border-slate-200">
+                  <p class="text-slate-800 text-sm leading-relaxed">
+                    <strong>Fixed Costs (The Non-Negotiables):</strong> These stay the exact same whether 10 people show up or 200 do. Think venue hire, stage permits, standard insurance, or sound equipment. You pay for them once.
+                  </p>
+                </div>
+                <div class="p-3 rounded-lg bg-slate-50 border-l-4 border-emerald-500 border border-slate-200">
+                  <p class="text-slate-800 text-sm leading-relaxed">
+                    <strong>Variable Costs (The Scale-Ups):</strong> These grow with every person who walks through the door. Think catering portions, printed name badges, welcome drinks, and extra security staff.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section class="space-y-2">
+              <h5 class="text-base font-bold text-slate-900">The Golden Rule: The Contingency Buffer</h5>
+              <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed">
+                Even the best-laid plans go sideways. A caterer might cancel last minute, or rain forces you to hire an emergency marquee. That’s why planners always set aside a 10% to 15% rainy-day buffer. If you don’t plan for surprises upfront, they come out of your own pocket.
+              </p>
+            </section>
+
+            <div class="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm font-medium">
+              (End of text. For their main project, students must submit a viable commercial budget for a 300-person event.)
+            </div>
+          </div>
+
+          <!-- DRAFT OPTION 3 CONTENT (Australian English applied) -->
+          <div id="contentChallengeOpt3" class="hidden p-6 sm:p-8 space-y-5 text-slate-800">
+            <div>
+              <h4 class="text-xl sm:text-2xl font-bold text-[#000054]">
+                Three-Point Studio Lighting
+              </h4>
+              <p class="text-slate-600 text-xs sm:text-sm mt-1">
+                Context: As part of your upcoming digital video assessment, you must light and record an interview subject in the broadcast studio. Learn how to transform flat camera imagery into three-dimensional cinematic depth.
+              </p>
+            </div>
+
+            <section class="space-y-2">
+              <h5 class="text-base font-bold text-slate-900">Why do smartphone videos look flat?</h5>
+              <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed">
+                Have you ever tried recording an interview or a presentation video on your phone, only to look washed out, tired, or lost in the background? Real life is three-dimensional, but cameras flatten everything onto a 2D screen. Lighting is the trick that puts life, shape, and depth back in.
+              </p>
+            </section>
+
+            <section class="space-y-2">
+              <h5 class="text-base font-bold text-slate-900">The Classic Three-Light Recipe</h5>
+              <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed">
+                You don’t need a Hollywood budget to get a cinematic look. Most professional shoots rely on three basic lights:
+              </p>
+              <div class="space-y-2.5 pl-2">
+                <div class="p-3 rounded-lg bg-slate-50 border-l-4 border-[#000054] border border-slate-200">
+                  <p class="text-slate-800 text-sm leading-relaxed">
+                    <strong>Key Light:</strong> Your main hero light. It sits off to one side at an angle, giving the face shape and character while casting natural shadows.
+                  </p>
+                </div>
+                <div class="p-3 rounded-lg bg-slate-50 border-l-4 border-amber-400 border border-slate-200">
+                  <p class="text-slate-800 text-sm leading-relaxed">
+                    <strong>Fill Light:</strong> Placed on the other side. Its job is gentle teamwork—it softens those dark shadows so the subject doesn’t look harsh or dramatic (unless that’s what you want!).
+                  </p>
+                </div>
+                <div class="p-3 rounded-lg bg-slate-50 border-l-4 border-purple-500 border border-slate-200">
+                  <p class="text-slate-800 text-sm leading-relaxed">
+                    <strong>Back Light (Hair Light):</strong> Placed behind and above, pointing down. It paints a subtle halo of light along the shoulders and hair, popping the person forward so they don’t melt into a dark wall.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section class="space-y-2">
+              <h5 class="text-base font-bold text-slate-900">The Catch: Mood and Balance</h5>
+              <p class="text-slate-700 text-sm sm:text-[15px] leading-relaxed">
+                Adjusting just one dimmer switch completely changes the story—from a friendly YouTube explainer to a moody film-noir interrogation.
+              </p>
+            </section>
+
+            <div class="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm font-medium">
+              (End of text. In their studio assessment, students must light a live actor to match a specific emotional scene.)
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- STEP 3: IDENTIFY OUTCOMES & ADD NOTES -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <h3 class="text-base sm:text-lg font-bold text-[#000054] flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-[#000054] text-white flex items-center justify-center text-xs">3</span>
+            <span>Step 3: Identify what students should be able to achieve, the outcomes of the activities that they will design. Add the note to the board</span>
+          </h3>
+          <button 
+            onclick="transferActiveNotesToStudio()"
+            class="px-4 py-2 bg-[#000054] hover:bg-[#00003c] text-white text-xs sm:text-sm font-bold rounded-lg transition shadow-sm flex items-center gap-1.5"
+          >
+            <span>Transfer to AI Prompt Tool</span> <span>&rarr;</span>
+          </button>
+        </div>
+
+        <!-- Streamlined Sticky Note Input Bar -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+            <div class="sm:col-span-3">
+              <label class="block text-xs font-bold text-slate-700 mb-1">Your Group</label>
+              <input 
+                id="stickyAuthor" 
+                type="text" 
+                placeholder="e.g. Group 3" 
+                class="w-full border border-slate-300 rounded-lg p-2 text-xs sm:text-sm bg-white text-slate-800 focus:border-[#000054]"
+              />
+            </div>
+            <div class="sm:col-span-7">
+              <label class="block text-xs font-bold text-slate-700 mb-1">Learning Outcome / Activity Idea</label>
+              <input 
+                id="stickyText" 
+                type="text" 
+                placeholder="What should students achieve? What will cause them to hesitate or practise?"
+                class="w-full border border-slate-300 rounded-lg p-2 text-xs sm:text-sm bg-white text-slate-800 focus:border-[#000054]"
+                onkeydown="if(event.key === 'Enter') addStickyNote();"
+              />
+            </div>
+            <div class="sm:col-span-2 flex items-end">
+              <button 
+                onclick="addStickyNote()" 
+                class="w-full py-2 bg-[#E60028] hover:bg-[#b80020] text-white font-bold text-xs sm:text-sm rounded-lg shadow-sm transition"
+              >
+                + Add Note
+              </button>
+            </div>
+          </div>
+
+          <!-- Sticky Notes Board -->
+          <div id="stickyNotesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-2">
+            <!-- Dynamically populated sticky notes -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Clear Navigation Footer -->
+      <div class="pt-4 flex justify-between items-center text-xs sm:text-sm font-semibold">
+        <button onclick="switchTab('sequence')" class="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1">
+          <span>&lt;</span> Previous: Phase 1 — Experience
+        </button>
+        <button onclick="switchTab('studio')" class="px-5 py-2.5 rounded-lg bg-[#000054] text-white hover:bg-[#00003c] flex items-center gap-1 shadow-sm">
+          <span>Next: Phase 3 — AI Prompt Tool</span> <span>&gt;</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- PHASE 3: AI PROMPT TOOL (CLARIFY & SHAPE)                             -->
+    <!-- ===================================================================== -->
+    <div id="tabStudio" class="hidden space-y-6">
+      
+      <!-- Phase 3 Header -->
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="inline-block bg-[#FAC800] text-[#000054] text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded">
+            Phase 3 of 4
+          </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-[#000054] mt-1">
+            Phase 3: AI Prompt Tool
+          </h2>
+          <p class="text-slate-600 text-sm mt-0.5">
+            Clarify your pedagogical objectives, generate a structured prompt, and create the simulation.
+          </p>
+        </div>
+      </div>
+
+      <!-- Step 1: Clarify Pedagogical Simulation Inputs -->
+      <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-5">
+        <h3 class="text-base sm:text-lg font-bold text-[#000054] flex items-center gap-2">
+          <span class="w-6 h-6 rounded-full bg-[#000054] text-white flex items-center justify-center text-xs">1</span>
+          <span>Step 1: Clarify pedagogical simulation inputs</span>
+        </h3>
+
+        <!-- Reordered Q1 -> Q4 Grid (Australian English applied) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          
+          <!-- Q1: Learning Goal & Cognitive Friction -->
+          <div class="space-y-1.5">
+            <label class="block text-sm font-bold text-slate-800">
+              1. Learning goal and cognitive friction (the hesitation moment)
+            </label>
+            <textarea 
+              id="inputGoalFriction" 
+              rows="4" 
+              class="w-full border border-slate-300 rounded-lg p-3 text-slate-800 text-sm focus:border-[#000054] focus:ring-1 focus:ring-[#000054] transition" 
+              placeholder="e.g. Students realise that aesthetically pleasing colours fail under bright sunlight or colour blindness. The simulation causes them to fail WCAG contrast checks when adjusting hue sliders."
+              oninput="generateCleanPrompt()"
+            ></textarea>
+            <span class="text-xs text-slate-500 block">
+              What moment of hesitation or dilemma forces students to recognise an unstated need?
+            </span>
+          </div>
+
+          <!-- Q2: Who are the learners? -->
+          <div class="space-y-1.5">
+            <label class="block text-sm font-bold text-slate-800">
+              2. Who are the learners? (context and discipline)
+            </label>
+            <textarea 
+              id="inputLearners" 
+              rows="4" 
+              class="w-full border border-slate-300 rounded-lg p-3 text-slate-800 text-sm focus:border-[#000054] focus:ring-1 focus:ring-[#000054] transition" 
+              placeholder="e.g. 2nd-year undergraduate students in Graphic Design, Web UX, or Digital Media."
+              oninput="generateCleanPrompt()"
+            ></textarea>
+            <span class="text-xs text-slate-500 block">
+              Who is participating in this learning activity?
+            </span>
+          </div>
+
+          <!-- Q3: What is the simulation about? -->
+          <div class="space-y-1.5">
+            <label class="block text-sm font-bold text-slate-800">
+              3. What is this simulation about? (core mechanics and behaviours)
+            </label>
+            <textarea 
+              id="inputSimulationAbout" 
+              rows="4" 
+              class="w-full border border-slate-300 rounded-lg p-3 text-slate-800 text-sm focus:border-[#000054] focus:ring-1 focus:ring-[#000054] transition" 
+              placeholder="e.g. An interactive digital colour palette tester with hue, saturation, and lightness sliders, live button preview, and a simulated bright sunlight / colour-blindness toggle filter."
+              oninput="generateCleanPrompt()"
+            ></textarea>
+            <span class="text-xs text-slate-500 block">
+              What digital or physical tool are students interacting with?
+            </span>
+          </div>
+
+          <!-- Q4: Post-simulation task -->
+          <div class="space-y-1.5">
+            <label class="block text-sm font-bold text-slate-800">
+              4. Post-simulation student task (what they do immediately after)
+            </label>
+            <textarea 
+              id="inputPostTask" 
+              rows="4" 
+              class="w-full border border-slate-300 rounded-lg p-3 text-slate-800 text-sm focus:border-[#000054] focus:ring-1 focus:ring-[#000054] transition" 
+              placeholder="e.g. Adjust their palette until it passes WCAG AA contrast, and write 3 verifiable engineering requirements for their mobile app interface."
+              oninput="generateCleanPrompt()"
+            ></textarea>
+            <span class="text-xs text-slate-500 block">
+              What do students do with their observation to bridge to the assessment?
+            </span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Step 2: Generated Prompt Output -->
+      <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 gap-3">
+          <h3 class="text-base sm:text-lg font-bold text-[#000054] flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-[#000054] text-white flex items-center justify-center text-xs">2</span>
+            <span>Step 2: Generated simulation prompt</span>
+          </h3>
+          <button onclick="copyPromptText()" id="btnCopyPrompt" class="px-4 py-2 bg-[#E60028] hover:bg-[#b80020] text-white text-xs sm:text-sm font-bold rounded-lg transition flex items-center justify-center gap-2 shadow-sm self-start sm:self-auto">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            <span>Copy Prompt</span>
+          </button>
+        </div>
+
+        <pre id="cleanPromptOutput" class="w-full h-72 sm:h-80 bg-slate-900 text-slate-100 p-4 sm:p-5 rounded-xl font-mono text-[13px] leading-relaxed overflow-y-auto whitespace-pre-wrap select-all border border-slate-800"></pre>
+      </div>
+
+      <!-- Step 3: Generate the Simulation in Gemini Canvas -->
+      <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <h3 class="text-base sm:text-lg font-bold text-[#000054] flex items-center gap-2">
+          <span class="w-6 h-6 rounded-full bg-[#000054] text-white flex items-center justify-center text-xs">3</span>
+          <span>Step 3: Generate the simulation in Gemini</span>
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm text-slate-700">
+          
+          <div class="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5">
+            <div class="font-bold text-[#000054] flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full bg-blue-100 text-[#000054] flex items-center justify-center text-xs font-black">a</span>
+              <span>Open Gemini &amp; Sign In</span>
+            </div>
+            <p class="text-slate-600 leading-relaxed">
+              Navigate to <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" class="text-[#000054] underline font-semibold">gemini.google.com</a> and sign in with your Google account.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5">
+            <div class="font-bold text-[#000054] flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full bg-blue-100 text-[#000054] flex items-center justify-center text-xs font-black">b</span>
+              <span>Paste Prompt into Canvas</span>
+            </div>
+            <p class="text-slate-600 leading-relaxed">
+              Paste the copied prompt into the chat. Gemini will automatically open the interactive Canvas editor on the right side of the screen and write the code.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5">
+            <div class="font-bold text-[#000054] flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full bg-blue-100 text-[#000054] flex items-center justify-center text-xs font-black">c</span>
+              <span>Preview &amp; Refine</span>
+            </div>
+            <p class="text-slate-600 leading-relaxed">
+              Click <strong>Preview</strong> in Gemini Canvas to interact with your simulation. Ask Gemini to tweak button labels, add audio, or intensify the friction moment.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Clear Navigation Footer -->
+      <div class="pt-4 flex justify-between items-center text-xs sm:text-sm font-semibold">
+        <button onclick="switchTab('challenge')" class="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">
+          &lt; Previous: Phase 2 — The Challenge
+        </button>
+        <button onclick="switchTab('showcase')" class="px-5 py-2.5 rounded-lg bg-[#000054] text-white hover:bg-[#00003c] shadow-sm">
+          Next: Phase 4 — Showcase &amp; Embed &gt;
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- PHASE 4: SHOWCASE & EMBED SIMULATION                                 -->
+    <!-- ===================================================================== -->
+    <div id="tabShowcase" class="hidden space-y-6">
+      
+      <!-- Phase 4 Header -->
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div class="inline-block bg-[#FAC800] text-[#000054] text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded">
+            Phase 4 of 4
+          </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-[#000054] mt-1">
+            Activities and Simulations Showcase Wall
+          </h2>
+          <p class="text-slate-600 text-sm mt-0.5">
+            Share your group's simulation, celebrate creative friction points, and explore what others built.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <a 
+            href="https://padlet.com/rmit_university/my-stunning-padlet-s023mnpvkvgut2qrx9yk" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            class="px-4 py-2 bg-[#000054] hover:bg-[#00003c] text-white font-bold text-xs sm:text-sm rounded-lg shadow-sm transition flex items-center gap-1.5"
+          >
+            <span>Open Padlet in New Tab</span>
+            <span>↗</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Embedded Padlet Container -->
+      <div class="bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="padlet-embed" style="border:1px solid rgba(0,0,0,0.1);border-radius:6px;box-sizing:border-box;overflow:hidden;position:relative;width:100%;background:#F4F4F4">
+          <p style="padding:0;margin:0">
+            <iframe 
+              src="https://padlet.com/embed/s023mnpvkvgut2qrx9yk" 
+              frameborder="0" 
+              allow="camera;microphone;geolocation;display-capture;clipboard-write" 
+              style="width:100%;height:580px;display:block;padding:0;margin:0"
+            ></iframe>
+          </p>
+        </div>
+      </div>
+
+      <!-- SEQUENCE & SIMULATION COMPILER / EMBEDDER -->
+      <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-5">
+        <div class="border-b border-slate-200 pb-3">
+          <h3 class="text-base sm:text-lg font-bold text-[#000054]">
+            Embed Your Simulation Back into the Sequence
+          </h3>
+          <p class="text-slate-600 text-sm mt-0.5">
+            Choose your sequence option, choose where to place the simulation, and drop in your HTML file to compile the complete active learning module.
+          </p>
+        </div>
+
+        <!-- Top Row: Step 1 & Step 2 in 2-Column Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          
+          <!-- Control 1: Sequence Option -->
+          <div class="space-y-1.5">
+            <label class="block text-sm font-bold text-slate-800">
+              1. Choose Course Sequence
+            </label>
+            <select 
+              id="embedSequenceOption" 
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white text-slate-800 focus:border-[#000054] focus:ring-1 focus:ring-[#000054]"
+              onchange="compileCompleteSequence()"
+            >
+              <option value="1">Option 1: Colour Theory in Digital Design</option>
+              <option value="2">Option 2: Event Budget Planning</option>
+              <option value="3">Option 3: Three-Point Studio Lighting</option>
+              <option value="custom">Custom / Own Topic Draft</option>
+            </select>
+            <span class="text-xs text-slate-500 block">Select which reading draft to embed into.</span>
+          </div>
+
+          <!-- Control 2: Placement Position -->
+          <div class="space-y-1.5">
+            <label class="block text-sm font-bold text-slate-800">
+              2. Place Simulation Inside
+            </label>
+            <select 
+              id="embedPlacementPosition" 
+              class="w-full border border-slate-300 rounded-lg p-2.5 text-sm bg-white text-slate-800 focus:border-[#000054] focus:ring-1 focus:ring-[#000054]"
+              onchange="compileCompleteSequence()"
+            >
+              <option value="section2" selected>Inside Section 2: Core Concept (Recommended)</option>
+              <option value="section1">After Section 1: Opening Hook</option>
+              <option value="section3">Before Section 3: Assessment Wrap-up</option>
+            </select>
+            <span class="text-xs text-slate-500 block">Determines where the friction trigger appears.</span>
+          </div>
+
+        </div>
+
+        <!-- Bottom Row: Step 3 on Left, Compile Button Aligned on Right -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-end pt-1">
+          
+          <!-- Control 3: Drag & Drop / Upload HTML -->
+          <div class="lg:col-span-8 space-y-1.5">
+            <label class="block text-sm font-bold text-slate-800">
+              3. Simulation HTML File or Code
+            </label>
+            <div 
+              id="simDropzone" 
+              class="border-2 border-dashed border-slate-300 hover:border-[#000054] bg-slate-50 hover:bg-blue-50/40 rounded-lg p-3 text-center cursor-pointer transition flex flex-col items-center justify-center min-h-[96px]"
+              onclick="document.getElementById('simFileInput').click()"
+              ondragover="handleDragOver(event)"
+              ondragleave="handleDragLeave(event)"
+              ondrop="handleFileDrop(event)"
+            >
+              <svg class="w-6 h-6 text-[#000054] mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+              <span class="text-xs font-bold text-slate-800" id="dropzoneLabel">Drag &amp; drop .html file here, or click to browse</span>
+              <span class="text-[11px] text-slate-500" id="dropzoneSubLabel">Accepts files saved from Gemini Canvas or Claude</span>
+              <input type="file" id="simFileInput" accept=".html,.htm" class="hidden" onchange="handleFileSelect(event)">
+            </div>
+          </div>
+
+          <!-- Compile Preview Button on the Right -->
+          <div class="lg:col-span-4 flex flex-col justify-end">
+            <button 
+              onclick="compileCompleteSequence()" 
+              class="w-full min-h-[96px] px-6 py-3 bg-[#E60028] hover:bg-[#b80020] text-white font-bold rounded-lg transition shadow-md flex flex-col items-center justify-center gap-1 cursor-pointer active:scale-95"
+            >
+              <span class="text-base sm:text-lg flex items-center gap-1.5">
+                <span>⚡ Compile &amp; Refresh Preview</span>
+              </span>
+              <span class="text-xs font-normal text-white/90">Assemble simulation into reading sequence</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Collapsible Raw Code / Custom Text Editor -->
+        <div class="pt-1">
+          <details class="text-xs sm:text-sm text-slate-700 group">
+            <summary class="cursor-pointer font-bold text-[#000054] hover:underline list-none flex items-center gap-1">
+              <span class="group-open:rotate-90 transition-transform inline-block">&rsaquo;</span>
+              <span>Advanced: View/Edit Raw Simulation Code or Custom Course Text</span>
+            </summary>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-2 border-t border-slate-200">
+              <div class="space-y-1">
+                <label class="block font-bold text-xs text-slate-700">Custom Sequence Text (if "Custom" option is chosen)</label>
+                <textarea 
+                  id="embedCustomSeqText" 
+                  rows="5" 
+                  class="w-full border border-slate-300 rounded-lg p-2.5 font-mono text-xs text-slate-800"
+                  placeholder="Paste your own lesson text here..."
+                  oninput="compileCompleteSequence()"
+                ></textarea>
+              </div>
+              <div class="space-y-1">
+                <label class="block font-bold text-xs text-slate-700">Raw Simulation HTML/JS Code</label>
+                <textarea 
+                  id="embedSimCode" 
+                  rows="5" 
+                  class="w-full border border-slate-300 rounded-lg p-2.5 font-mono text-xs text-slate-800"
+                  placeholder="Or paste code here directly..."
+                  oninput="compileCompleteSequence()"
+                ></textarea>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- Compiled Live Preview Canvas with Open in New Tab Button -->
+        <div class="space-y-3 pt-2" id="previewSection">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm sm:text-base font-bold uppercase tracking-wider text-[#000054] flex items-center gap-2">
+              <span>Live Compiled Sequence Preview</span>
+            </h4>
+            <button 
+              onclick="openPreviewInNewTab()" 
+              id="btnOpenNewTab"
+              class="px-3.5 py-1.5 rounded-lg border border-[#000054]/20 hover:border-[#000054] bg-white hover:bg-blue-50/50 text-[#000054] text-xs sm:text-sm font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+              title="Open full-sized document in new browser tab"
+            >
+              <svg class="w-4 h-4 text-[#000054]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+              <span>Open in New Tab</span>
+            </button>
+          </div>
+          
+          <div id="previewFrameWrapper" class="rounded-xl border border-slate-300 bg-white overflow-hidden shadow-sm relative transition-all duration-200">
+            <iframe 
+              id="compiledPreviewFrame" 
+              class="w-full h-[620px] bg-white border-0 transition-all duration-300" 
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              title="Compiled Course Sequence with Embedded Simulation"
+            ></iframe>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Wrap-up Return to Why Note -->
+      <div class="p-5 sm:p-6 rounded-xl bg-white border-l-4 border-l-[#FAC800] border border-slate-200 shadow-sm space-y-2">
+        <h4 class="text-sm font-bold uppercase tracking-wider text-[#000054]">
+          Wrap-up: Return to the "Why"
+        </h4>
+        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+          <strong>A simulation with no next step is just a demo, not learning.</strong><br />
+          The simulation only matters if it becomes raw material for something the student does afterward. In our sequence, the hesitation at the vending machine became the direct evidence needed to write measurable engineering specifications.
+        </p>
+      </div>
+
+      <!-- Navigation Footer -->
+      <div class="pt-2 flex justify-between items-center text-xs sm:text-sm font-semibold">
+        <button onclick="switchTab('studio')" class="px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">
+          &lt; Previous: Phase 3 — AI Prompt Tool
+        </button>
+        <button onclick="switchTab('home')" class="px-5 py-2.5 rounded-lg bg-[#000054] text-white hover:bg-[#00003c] shadow-sm">
+          Return to Overview &gt;
+        </button>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Clean Footer -->
+  <footer class="bg-white border-t border-slate-200 py-4 text-xs text-slate-500 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div>Creating Bespoke Learning Activities &bull; Higher Education Horizon 2026</div>
+      <div>RMIT University</div>
+    </div>
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- REACT COMPONENT: RETRO-MODERN ARCADE VENDING MACHINE                  -->
+  <!-- ===================================================================== -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const playSynthSound = (type) => {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+
+        if (type === 'click') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(1200, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.09);
+        } else if (type === 'insert_coin') {
+          const now = ctx.currentTime;
+          [0, 0.06].forEach((delay) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(2200 - (delay * 2000), now + delay);
+            osc.frequency.exponentialRampToValueAtTime(800, now + delay + 0.1);
+            gain.gain.setValueAtTime(0.15, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.12);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.15);
+          });
+        } else if (type === 'insert_bill') {
+          const now = ctx.currentTime;
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc1.type = 'sawtooth';
+          osc1.frequency.setValueAtTime(90, now);
+          osc1.frequency.linearRampToValueAtTime(140, now + 1.2);
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(95, now);
+          osc2.frequency.linearRampToValueAtTime(145, now + 1.2);
+          gain.gain.setValueAtTime(0.0, now);
+          gain.gain.linearRampToValueAtTime(0.06, now + 0.1);
+          gain.gain.linearRampToValueAtTime(0.06, now + 1.0);
+          gain.gain.linearRampToValueAtTime(0.0, now + 1.2);
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(ctx.destination);
+          osc1.start(now);
+          osc2.start(now);
+          osc1.stop(now + 1.2);
+          osc2.stop(now + 1.2);
+        } else if (type === 'motor') {
+          const now = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const filter = ctx.createBiquadFilter();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(60, now);
+          osc.frequency.linearRampToValueAtTime(62, now + 1.5);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(180, now);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.linearRampToValueAtTime(0.1, now + 1.3);
+          gain.gain.linearRampToValueAtTime(0.0, now + 1.5);
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 1.5);
+        } else if (type === 'dispense_clunk') {
+          const osc = ctx.createOscillator();
+          const noise = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(110, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.35);
+          noise.type = 'triangle';
+          noise.frequency.setValueAtTime(50, ctx.currentTime);
+          noise.frequency.exponentialRampToValueAtTime(20, ctx.currentTime + 0.25);
+          gain.gain.setValueAtTime(0.35, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+          osc.connect(gain);
+          noise.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          noise.start();
+          osc.stop(ctx.currentTime + 0.45);
+          noise.stop(ctx.currentTime + 0.45);
+        } else if (type === 'success') {
+          const melody = [523.25, 659.25, 783.99, 1046.50];
+          const now = ctx.currentTime;
+          melody.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + (idx * 0.08));
+            gain.gain.setValueAtTime(0.1, now + (idx * 0.08));
+            gain.gain.exponentialRampToValueAtTime(0.01, now + (idx * 0.08) + 0.25);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + (idx * 0.08));
+            osc.stop(now + (idx * 0.08) + 0.3);
+          });
+        } else if (type === 'error') {
+          const now = ctx.currentTime;
+          [0, 0.15].forEach((delay) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(140, now + delay);
+            gain.gain.setValueAtTime(0.12, now + delay);
+            gain.gain.linearRampToValueAtTime(0.01, now + delay + 0.12);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.14);
+          });
+        }
+      } catch (err) {
+        // Audio playback fallback
+      }
+    };
+
+    const CocaColaSVG = () => (
+      <svg viewBox="0 0 100 40" className="w-10 h-auto fill-white drop-shadow-md">
+        <text x="50%" y="24" textAnchor="middle" fontSize="13" fontWeight="900" fontStyle="italic" className="tracking-tight">Coke</text>
+        <path d="M 10,26 Q 35,16 55,26 T 90,24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.2" />
+      </svg>
+    );
+
+    const PepsiSVG = () => (
+      <div className="flex flex-col items-center">
+        <div className="w-6 h-6 rounded-full bg-white flex flex-col overflow-hidden shadow-md relative">
+          <div className="h-[40%] bg-red-600 w-full"></div>
+          <div className="h-[20%] bg-white w-full -skew-y-12 transform scale-110"></div>
+          <div className="h-[40%] bg-blue-700 w-full"></div>
+        </div>
+        <span className="text-[6px] font-black tracking-widest mt-0.5 text-white">PEPSI</span>
+      </div>
+    );
+
+    const MonsterSVG = () => (
+      <div className="flex flex-col items-center justify-center">
+        <div className="flex space-x-[2px] items-center">
+          <div className="w-[1.5px] h-5 bg-lime-400 rotate-12 rounded"></div>
+          <div className="w-[2px] h-6 bg-lime-400 -skew-x-12 rounded"></div>
+          <div className="w-[1.5px] h-5 bg-lime-400 rotate-12 rounded"></div>
+        </div>
+        <span className="text-[5px] font-bold text-lime-400 tracking-wider">MONSTER</span>
+      </div>
+    );
+
+    const RedBullSVG = () => (
+      <div className="flex flex-col items-center justify-center h-full">
+        <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center relative shadow-inner">
+          <div className="absolute w-4 h-1.5 bg-red-600 -rotate-12 -translate-x-[1px]"></div>
+          <div className="absolute w-4 h-1.5 bg-red-600 rotate-12 translate-x-[1px]"></div>
+        </div>
+        <span className="text-[5px] font-extrabold mt-0.5 text-white tracking-widest">RED BULL</span>
+      </div>
+    );
+
+    const SevenUpSVG = () => (
+      <div className="flex items-center justify-center space-x-0.5">
+        <span className="text-lg font-black italic text-white leading-none drop-shadow">7</span>
+        <div className="flex flex-col items-center">
+          <div className="w-2 h-2 bg-red-600 rounded-full border border-white"></div>
+          <span className="text-[4px] font-bold text-green-300">UP</span>
+        </div>
+      </div>
+    );
+
+    const WaterBottleSVG = ({ brand }) => (
+      <div className="flex flex-col items-center">
+        <div className="w-3.5 h-1 bg-blue-300 rounded-t-sm border-b border-blue-500/30"></div>
+        <div className="w-4.5 h-9 bg-white/40 border border-white/20 rounded flex items-center justify-center relative overflow-hidden">
+          <div className="absolute inset-y-0 left-0 w-1 bg-white/20"></div>
+          <div className="w-full py-0.5 bg-blue-600 text-[5px] font-extrabold text-white text-center italic tracking-tighter uppercase leading-none">
+            {brand}
+          </div>
+        </div>
+      </div>
+    );
+
+    const LaySVG = () => (
+      <div className="flex flex-col items-center">
+        <div className="w-8 h-10 bg-yellow-500 rounded-md relative flex items-center justify-center overflow-hidden border border-yellow-300 shadow">
+          <div className="absolute w-4 h-4 bg-red-600 rounded-full -top-1"></div>
+          <div className="w-3.5 h-3.5 bg-yellow-400 rounded-full border border-yellow-200 z-10 shadow-sm"></div>
+          <span className="absolute bottom-1 text-[5px] font-bold text-white uppercase tracking-tighter">LAYS</span>
+        </div>
+      </div>
+    );
+
+    const OreoSVG = () => (
+      <div className="flex flex-col items-center">
+        <div className="w-9 h-9 bg-blue-800 rounded border-2 border-blue-400 flex flex-col items-center justify-center relative overflow-hidden shadow-md">
+          <div className="w-6 h-6 rounded-full bg-cyan-900 border border-cyan-400 flex items-center justify-center">
+            <span className="text-[5px] text-white font-extrabold italic">OREO</span>
+          </div>
+        </div>
+      </div>
+    );
+
+    const KitKatSVG = () => (
+      <div className="flex flex-col items-center">
+        <div className="w-9 h-6.5 bg-red-700 rounded border border-red-500 flex items-center justify-center relative shadow">
+          <span className="text-[6px] text-white font-black tracking-tight leading-none italic uppercase">KitKat</span>
+        </div>
+      </div>
+    );
+
+    const DoritosSVG = () => (
+      <div className="flex flex-col items-center">
+        <div className="w-8 h-10 bg-gradient-to-b from-orange-600 to-red-800 rounded-md border border-orange-500 flex flex-col items-center justify-between py-1 relative overflow-hidden shadow">
+          <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[15px] border-b-yellow-500 shadow-sm"></div>
+          <span className="text-[4.5px] text-white font-black tracking-widest leading-none">DORITOS</span>
+        </div>
+      </div>
+    );
+
+    const VendingSimulator = () => {
+      const [step, setStep] = useState('idle');
+      const [balance, setBalance] = useState(0);
+      const [inputCode, setInputCode] = useState('');
+      const [selectedItem, setSelectedItem] = useState(null);
+      const [displayMsg, setDisplayMsg] = useState('WELCOME');
+      const [returnedCoins, setReturnedCoins] = useState([]);
+      const [soundOn, setSoundOn] = useState(true);
+      const [currentTheme, setCurrentTheme] = useState('cyan');
+      const [spinningCoil, setSpinningCoil] = useState(null);
+
+      const [inventory, setInventory] = useState([
+        { id: 'A1', name: 'Coca-Cola', price: 15000, color: 'bg-red-600', logo: <CocaColaSVG />, stock: 5 },
+        { id: 'A2', name: 'Pepsi Cola', price: 15000, color: 'bg-blue-800', logo: <PepsiSVG />, stock: 4 },
+        { id: 'A3', name: '7-Up Fizz', price: 12000, color: 'bg-emerald-600', logo: <SevenUpSVG />, stock: 3 },
+        { id: 'A4', name: 'Monster Green', price: 30000, color: 'bg-zinc-900 border border-lime-500/40', logo: <MonsterSVG />, stock: 6 },
+        
+        { id: 'B1', name: 'La Vie Water', price: 8000, color: 'bg-cyan-500', logo: <WaterBottleSVG brand="LAVIE" />, stock: 8 },
+        { id: 'B2', name: 'Aquafina Pure', price: 8000, color: 'bg-blue-600', logo: <WaterBottleSVG brand="AQUA" />, stock: 7 },
+        { id: 'B3', name: 'Red Bull Energy', price: 25000, color: 'bg-amber-500', logo: <RedBullSVG />, stock: 5 },
+        { id: 'B4', name: 'Sting Nitro', price: 15000, color: 'bg-pink-600', logo: <span className="text-[9px] font-black italic tracking-tighter text-white">STING</span>, stock: 2 },
+        
+        { id: 'C1', name: 'Lay\'s Classic', price: 18000, color: 'bg-yellow-600', logo: <LaySVG />, stock: 4 },
+        { id: 'C2', name: 'KitKat Wafer', price: 15000, color: 'bg-red-700', logo: <KitKatSVG />, stock: 5 },
+        { id: 'C3', name: 'Oreo Double', price: 16000, color: 'bg-blue-900', logo: <OreoSVG />, stock: 6 },
+        { id: 'C4', name: 'Doritos Tangy', price: 20000, color: 'bg-orange-700', logo: <DoritosSVG />, stock: 3 }
+      ]);
+
+      const VND = (val) => val.toLocaleString('vi-VN') + 'đ';
+
+      const playSound = (soundType) => {
+        if (soundOn) playSynthSound(soundType);
+      };
+
+      useEffect(() => {
+        if (step === 'idle') {
+          if (inputCode) {
+            setDisplayMsg(`SLOT: ${inputCode}`);
+          } else {
+            const messages = ['INSERT CASH OR INPUT CODE', 'WELCOME TO SMARTDRINKS', 'SCAN QR TO INSTANTLY PAY'];
+            let msgIdx = 0;
+            setDisplayMsg(messages[0]);
+            
+            const interval = setInterval(() => {
+              if (step === 'idle' && !inputCode) {
+                msgIdx = (msgIdx + 1) % messages.length;
+                setDisplayMsg(messages[msgIdx]);
+              }
+            }, 5000);
+            return () => clearInterval(interval);
+          }
+        }
+      }, [inputCode, step]);
+
+      const handleKeypad = (val) => {
+        playSound('click');
+        if (step !== 'idle' && step !== 'selected' && step !== 'payment') return;
+
+        if (val === 'ENTER') {
+          const item = inventory.find(i => i.id === inputCode.toUpperCase());
+          if (item) {
+            if (item.stock <= 0) {
+              playSound('error');
+              setDisplayMsg('SOLD OUT - RE-SELECT');
+              setTimeout(() => setInputCode(''), 2000);
+            } else {
+              setSelectedItem(item);
+              if (balance >= item.price) {
+                processDispense(item, balance);
+              } else {
+                setStep('selected');
+                setDisplayMsg(`${item.name.toUpperCase()} - ${VND(item.price)}`);
+              }
+            }
+          } else {
+            playSound('error');
+            setDisplayMsg('INVALID SELECTION');
+            setTimeout(() => setInputCode(''), 1500);
+          }
+          return;
+        }
+
+        if (val === 'DEL') {
+          setInputCode(prev => prev.slice(0, -1));
+          if (inputCode.length <= 1) {
+            setSelectedItem(null);
+            setStep('idle');
+          }
+          return;
+        }
+
+        const newCode = (inputCode + val).slice(0, 2).toUpperCase();
+        setInputCode(newCode);
+      };
+
+      const processDispense = (targetItem, activeBalance) => {
+        setStep('processing');
+        setDisplayMsg('PROCESSING...');
+        
+        setTimeout(() => {
+          playSound('motor');
+          setSpinningCoil(targetItem.id);
+          setDisplayMsg('DISPENSING...');
+
+          setTimeout(() => {
+            playSound('dispense_clunk');
+            setSpinningCoil(null);
+            
+            setInventory(prev => prev.map(item => {
+              if (item.id === targetItem.id) {
+                return { ...item, stock: item.stock - 1 };
+              }
+              return item;
+            }));
+
+            setStep('dispensing');
+            setDisplayMsg('COLLECT PRODUCT');
+            
+            const remainingChange = activeBalance - targetItem.price;
+            if (remainingChange > 0) {
+              triggerChangeReturn(remainingChange);
+            }
+            setBalance(0);
+          }, 1500);
+        }, 1000);
+      };
+
+      const triggerChangeReturn = (amount) => {
+        let currentVal = amount;
+        const coinsToDrop = [];
+        const denoms = [10000, 5000, 2000];
+        
+        denoms.forEach(val => {
+          while (currentVal >= val) {
+            coinsToDrop.push(val);
+            currentVal -= val;
+          }
+        });
+        
+        if (currentVal > 0) coinsToDrop.push(currentVal);
+        
+        setTimeout(() => {
+          playSound('insert_coin');
+          setReturnedCoins(prev => [...prev, ...coinsToDrop]);
+        }, 800);
+      };
+
+      const handleBillInsert = (amount) => {
+        if (step !== 'idle' && step !== 'selected' && step !== 'payment') return;
+        playSound('insert_bill');
+        setStep('payment');
+
+        const newBalance = balance + amount;
+        setBalance(newBalance);
+        setDisplayMsg(`CREDIT: ${VND(newBalance)}`);
+
+        if (selectedItem && newBalance >= selectedItem.price) {
+          processDispense(selectedItem, newBalance);
+        }
+      };
+
+      const handleQRSimulation = () => {
+        if (!selectedItem) {
+          playSound('error');
+          setDisplayMsg('SELECT PRODUCT FIRST');
+          return;
+        }
+        playSound('insert_bill');
+        setStep('payment');
+        setDisplayMsg('SCANNING QR...');
+        
+        setTimeout(() => {
+          playSound('success');
+          setBalance(selectedItem.price);
+          processDispense(selectedItem, selectedItem.price);
+        }, 1800);
+      };
+
+      const collectProduct = () => {
+        playSound('click');
+        setStep('idle');
+        setSelectedItem(null);
+        setInputCode('');
+      };
+
+      const collectReturnedCoins = () => {
+        if (returnedCoins.length === 0) return;
+        playSound('insert_coin');
+        setReturnedCoins([]);
+        setDisplayMsg('CHANGE COLLECTED');
+        setTimeout(() => setDisplayMsg('WELCOME'), 1200);
+      };
+
+      const handleReturnButton = () => {
+        if (balance <= 0) {
+          playSound('error');
+          return;
+        }
+        playSound('click');
+        triggerChangeReturn(balance);
+        setBalance(0);
+        setStep('idle');
+        setSelectedItem(null);
+        setInputCode('');
+      };
+
+      const getThemeColorClass = () => {
+        switch(currentTheme) {
+          case 'pink': return 'text-pink-500 border-pink-500 neon-glow-pink';
+          case 'cyan': return 'text-cyan-400 border-cyan-400 neon-glow-cyan';
+          case 'yellow': return 'text-yellow-400 border-yellow-400 neon-glow-yellow';
+          default: return 'text-white border-white neon-glow-white';
+        }
+      };
+
+      return (
+        <div className="w-full max-w-[1020px] h-[640px] bg-zinc-900 rounded-[2rem] border-[10px] border-zinc-800 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85)] flex overflow-hidden ring-1 ring-white/10 text-white relative">
+          
+          <div className={`absolute top-1 left-12 right-12 h-1 rounded-full transition-all duration-500 opacity-80 animate-led-pulse ${
+            currentTheme === 'pink' ? 'bg-pink-500 shadow-[0_0_12px_#ec4899]' :
+            currentTheme === 'cyan' ? 'bg-cyan-400 shadow-[0_0_12px_#06b6d4]' :
+            currentTheme === 'yellow' ? 'bg-yellow-400 shadow-[0_0_12px_#eab308]' :
+            'bg-zinc-200 shadow-[0_0_12px_#ffffff]'
+          }`}></div>
+
+          {/* LEFT CHAMBER */}
+          <div className="flex-1 bg-zinc-950/40 p-4 sm:p-5 flex flex-col justify-between relative overflow-hidden h-full">
+            <div className={`absolute inset-0 transition-opacity duration-700 opacity-10 pointer-events-none ${
+              currentTheme === 'pink' ? 'bg-pink-500' :
+              currentTheme === 'cyan' ? 'bg-cyan-500' :
+              currentTheme === 'yellow' ? 'bg-yellow-500' : 'bg-white'
+            }`}></div>
+
+            <div className="flex-1 grid grid-rows-3 gap-4 relative z-10 pt-2">
+              {['A', 'B', 'C'].map((rowLetter) => (
+                <div key={rowLetter} className="relative flex items-end justify-between pb-2 px-2 border-b border-zinc-800/60">
+                  <div className="absolute bottom-0 inset-x-0 h-1 bg-gradient-to-r from-zinc-700 via-zinc-400 to-zinc-700 rounded shadow"></div>
+
+                  {inventory.filter(i => i.id.startsWith(rowLetter)).map((item) => (
+                    <div key={item.id} className="flex flex-col items-center relative group w-1/4">
+                      <div className="absolute bottom-5 w-8 h-10 flex flex-col justify-between opacity-50 pointer-events-none z-0">
+                        {[...Array(3)].map((_, idx) => (
+                          <div 
+                            key={idx} 
+                            className={`h-1.5 border-[1.5px] border-zinc-500 rounded-full w-full transform -skew-y-12 transition-transform duration-1000 ${
+                              spinningCoil === item.id ? 'animate-coil' : ''
+                            }`}
+                          ></div>
+                        ))}
+                      </div>
+
+                      <div className="relative h-18 flex items-end justify-center z-10">
+                        {item.stock > 0 ? (
+                          <div className={`w-11 h-16 ${item.color} rounded-md flex flex-col items-center justify-center text-white font-bold transition-all duration-1000 relative shadow-md ${
+                            step === 'dispensing' && selectedItem?.id === item.id 
+                              ? 'translate-y-52 rotate-45 scale-75 opacity-0 duration-[1100ms]' 
+                              : 'group-hover:scale-105 group-hover:-translate-y-0.5'
+                          }`}>
+                            {item.logo}
+                            <div className="absolute top-0.5 right-0.5 flex space-x-0.5">
+                              {[...Array(Math.min(item.stock, 2))].map((_, dotIdx) => (
+                                <div key={dotIdx} className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-11 h-16 bg-zinc-800/80 border border-zinc-700 rounded-md flex items-center justify-center text-zinc-600 font-black text-[8px] uppercase tracking-tighter">
+                            SOLD OUT
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between w-12 px-1 py-0.5 bg-zinc-950/90 border border-zinc-800 rounded font-mono text-[8px] text-zinc-400 z-10 shadow">
+                        <span className="font-bold text-white">{item.id}</span>
+                        <span className="text-zinc-500">{VND(item.price).slice(0, -5)}k</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            <div className="absolute inset-0 glass-glare rounded-2xl z-20"></div>
+
+            <div className="h-24 mt-3 bg-zinc-950 rounded-xl border-t-[5px] border-zinc-900 shadow-[inset_0_8px_16px_rgba(0,0,0,0.8)] relative flex items-center justify-center overflow-hidden z-20 group">
+              <div className={`absolute top-0 inset-x-0 h-[1.5px] opacity-30 transition-colors ${
+                currentTheme === 'pink' ? 'bg-pink-500' :
+                currentTheme === 'cyan' ? 'bg-cyan-400' :
+                currentTheme === 'yellow' ? 'bg-yellow-400' : 'bg-white'
+              }`}></div>
+
+              {step === 'dispensing' && selectedItem && (
+                <div className="absolute animate-bounce flex flex-col items-center z-30">
+                  <div className={`w-12 h-16 ${selectedItem.color} rounded-md shadow-2xl flex flex-col items-center justify-center border border-white/10 transform rotate-12`}>
+                    {selectedItem.logo}
+                  </div>
+                  <button 
+                    onClick={collectProduct}
+                    className="mt-1 text-[9px] bg-emerald-500 hover:bg-emerald-400 text-black font-black px-3 py-1 rounded-full transition-all tracking-wider shadow-lg transform active:scale-95 cursor-pointer"
+                  >
+                    GRAB
+                  </button>
+                </div>
+              )}
+
+              <span className="text-zinc-800 font-extrabold text-xl tracking-[1.5rem] select-none pl-[1.5rem] group-hover:text-zinc-700 transition-colors">PUSH</span>
+            </div>
+          </div>
+
+          {/* RIGHT CONTROL PANEL */}
+          <div className="w-[330px] sm:w-[350px] bg-zinc-800 border-l-[5px] border-zinc-950 p-4 sm:p-5 flex flex-col justify-between h-full relative">
+            <div>
+              <div className="relative mb-3">
+                <div className={`w-full h-24 bg-black/95 rounded-xl border-2 p-2.5 flex flex-col justify-between relative overflow-hidden transition-all duration-500 ${getThemeColorClass()}`}>
+                  <div className="scanlines absolute inset-0 z-0 opacity-30"></div>
+                  
+                  <div className="flex items-center justify-between text-[9px] uppercase font-bold tracking-widest relative z-10 opacity-70">
+                    <span>SYSTEM DIAG</span>
+                    <div className="flex items-center space-x-1">
+                      <div className={`w-1.5 h-1.5 rounded-full animate-ping ${
+                        step === 'error' ? 'bg-red-500' : 'bg-emerald-400'
+                      }`}></div>
+                      <span>{step}</span>
+                    </div>
+                  </div>
+
+                  <div className="my-auto text-center relative z-10 px-1">
+                    <p className="font-lcd text-sm sm:text-base font-black tracking-tight uppercase leading-none truncate">
+                      {displayMsg}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-between items-center text-[9px] font-mono border-t border-white/10 pt-1 relative z-10">
+                    <div>
+                      <span className="text-zinc-500">CODE:</span>{' '}
+                      <span className="font-bold">{inputCode || '--'}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500">CREDIT:</span>{' '}
+                      <span className="font-bold text-green-400">{VND(balance)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5 mb-3">
+                {['A', 'B', 'C', '1', '2', '3', '4', 'DEL', 'ENTER'].map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => handleKeypad(k)}
+                    className={`h-9 bg-zinc-750 text-zinc-100 font-bold rounded-lg border-b-[3px] border-zinc-950 active:border-b-0 active:translate-y-1 hover:brightness-110 active:brightness-95 transition-all shadow flex items-center justify-center font-lcd cursor-pointer ${
+                      k === 'ENTER' ? 'bg-blue-900 border-blue-950 text-blue-200 text-[10px]' : 
+                      k === 'DEL' ? 'bg-red-950 border-red-950 text-red-300 text-[10px]' : 'text-sm'
+                    }`}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-2">
+                <div className="p-2.5 bg-zinc-900 rounded-xl border border-zinc-950">
+                  <div className="text-[9px] font-extrabold uppercase tracking-widest text-zinc-400 mb-1">
+                    Insert Banknotes
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[10000, 20000, 50000].map(amt => (
+                      <button 
+                        key={amt}
+                        onClick={() => handleBillInsert(amt)}
+                        className="py-1 bg-zinc-800 text-zinc-300 rounded border border-zinc-700 hover:bg-zinc-700 hover:text-white transition-all font-mono text-[10px] font-bold cursor-pointer"
+                      >
+                        +{VND(amt).replace('đ', '')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button 
+                  onClick={handleQRSimulation}
+                  className="w-full p-2 bg-zinc-900 rounded-xl border border-zinc-950 flex items-center justify-between hover:border-cyan-500/50 transition-all shadow cursor-pointer group"
+                >
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1 bg-white rounded shadow">
+                      <svg className="w-3.5 h-3.5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                    </div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 group-hover:text-cyan-400 transition-colors">Instant QR Scan</p>
+                  </div>
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-zinc-950 flex flex-col space-y-2">
+              <div className="flex items-center justify-between">
+                <button 
+                  onClick={handleReturnButton}
+                  className="text-[9px] bg-red-950/40 border border-red-900/40 hover:bg-red-900 hover:text-white text-red-400 font-bold px-2.5 py-1 rounded transition-colors flex items-center space-x-1 cursor-pointer"
+                >
+                  <span>CHANGE</span>
+                </button>
+                
+                <div className="flex items-center space-x-1.5">
+                  <button 
+                    onClick={() => { setSoundOn(!soundOn); playSound('click'); }}
+                    className={`p-1 rounded border transition-colors cursor-pointer ${
+                      soundOn ? 'bg-zinc-750 border-zinc-700 text-zinc-200' : 'bg-red-950/30 border-red-900/20 text-red-400'
+                    }`}
+                    title="Audio Synthesizer"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {soundOn ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zm11.334-5.328L20.24 13m0 0l3.313 3.328m-3.313-3.328L16.92 16.33M20.24 13l3.313-3.328" />
+                      )}
+                    </svg>
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      const themes = ['pink', 'cyan', 'yellow', 'white'];
+                      const nextIdx = (themes.indexOf(currentTheme) + 1) % themes.length;
+                      setCurrentTheme(themes[nextIdx]);
+                      playSound('click');
+                    }}
+                    className="px-2 py-0.5 rounded border border-zinc-700 bg-zinc-750 text-zinc-200 text-[9px] font-bold cursor-pointer"
+                  >
+                    LED
+                  </button>
+                </div>
+              </div>
+
+              <div 
+                onClick={collectReturnedCoins}
+                className={`h-12 bg-zinc-950 rounded-xl border-t-4 border-zinc-900 shadow-[inset_0_3px_8px_rgba(0,0,0,0.9)] flex items-center justify-center relative overflow-hidden transition-all duration-300 ${
+                  returnedCoins.length > 0 ? 'bg-zinc-900 cursor-pointer hover:border-yellow-600/40' : ''
+                }`}
+              >
+                {returnedCoins.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 px-2 justify-center animate-bounce">
+                    {returnedCoins.map((coinVal, idx) => (
+                      <div 
+                        key={idx} 
+                        className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-600 text-[8px] text-zinc-950 font-extrabold flex items-center justify-center border border-yellow-200 shadow"
+                        title={`Coin: ${VND(coinVal)}`}
+                      >
+                        $
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-[9px] text-zinc-700 font-extrabold tracking-widest uppercase">Refund Tray</span>
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('vending-machine-root')).render(<VendingSimulator />);
+  </script>
+
+  <!-- ===================================================================== -->
+  <!-- VANILLA JAVASCRIPT: LOGIC & EMBEDDER COMPILER                         -->
+  <!-- ===================================================================== -->
+  <script>
+    // Tab Controller for 5 Views: Home, Sequence, Challenge, Studio, Showcase
+    function switchTab(tabId) {
+      const tabs = {
+        home: document.getElementById('tabHome'),
+        sequence: document.getElementById('tabSequence'),
+        challenge: document.getElementById('tabChallenge'),
+        studio: document.getElementById('tabStudio'),
+        showcase: document.getElementById('tabShowcase'),
+      };
+      const btns = {
+        home: document.getElementById('tabBtnHome'),
+        sequence: document.getElementById('tabBtnSequence'),
+        challenge: document.getElementById('tabBtnChallenge'),
+        studio: document.getElementById('tabBtnStudio'),
+        showcase: document.getElementById('tabBtnShowcase'),
+      };
+
+      Object.keys(tabs).forEach(k => {
+        if (!tabs[k] || !btns[k]) return;
+        if (k === tabId) {
+          tabs[k].classList.remove('hidden');
+          btns[k].className = "px-2.5 sm:px-3 py-1.5 rounded-md font-bold text-white bg-[#000054] transition shadow-sm";
+        } else {
+          tabs[k].classList.add('hidden');
+          btns[k].className = "px-2.5 sm:px-3 py-1.5 rounded-md font-medium text-slate-700 hover:text-[#000054] hover:bg-slate-200 transition";
+        }
+      });
+
+      if (tabId === 'studio') generateCleanPrompt();
+      if (tabId === 'challenge') renderStickyNotes();
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Option-Specific Poll Feedback
+    const pollFeedbackData = {
+      A: {
+        type: 'warning',
+        bg: 'bg-amber-50',
+        border: 'border-amber-300',
+        titleColor: 'text-amber-900',
+        badge: 'Assumptive Approach',
+        text: '"Fast," "convenient," and "sleek" are subjective buzzwords, not engineering specs. Designing immediately means you are building based on your own assumptions rather than what the campus community actually needs.'
+      },
+      B: {
+        type: 'warning',
+        bg: 'bg-amber-50',
+        border: 'border-amber-300',
+        titleColor: 'text-amber-900',
+        badge: 'Context Mismatch',
+        text: 'While reusing proven components saves time, copy-pasting specs ignores this specific environment, like peak rush hours between classes and accessibility requirements.'
+      },
+      C: {
+        type: 'success',
+        bg: 'bg-emerald-50',
+        border: 'border-emerald-300',
+        titleColor: 'text-emerald-900',
+        badge: 'Best Approach',
+        text: 'Best approach. Clients describe symptoms and wishes, not functional specs. Probing their context, user habits, and physical environment helps you translate vague adjectives into measurable engineering requirements.'
+      },
+      D: {
+        type: 'error',
+        bg: 'bg-rose-50',
+        border: 'border-rose-300',
+        titleColor: 'text-rose-900',
+        badge: 'Stakeholder Friction',
+        text: 'Clients are domain experts in their own needs, not systems engineers. Demanding ready-made technical specs from them shifts your core engineering responsibility back onto the stakeholder.'
+      }
+    };
+
+    function voteCanvasPoll(selected) {
+      const counts = { A: 4, B: 6, C: 42, D: 8 };
+      counts[selected] += 1;
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+      ['A', 'B', 'C', 'D'].forEach(opt => {
+        const pct = Math.round((counts[opt] / total) * 100);
+        document.getElementById(`percent${opt}`).textContent = `${pct}%`;
+        document.getElementById(`bar${opt}`).style.width = `${pct}%`;
+        
+        const card = document.getElementById(`pollOpt${opt}`);
+        if (opt === selected) {
+          card.classList.add('ring-2', 'ring-[#000054]', 'bg-blue-50/40');
+        } else {
+          card.classList.remove('ring-2', 'ring-[#000054]', 'bg-blue-50/40');
+        }
+      });
+
+      const fb = pollFeedbackData[selected];
+      const fbBox = document.getElementById('canvasPollFeedback');
+      fbBox.className = `mt-3 p-3.5 rounded-lg border text-xs sm:text-sm ${fb.bg} ${fb.border}`;
+      fbBox.innerHTML = `
+        <div class="flex items-center gap-2 mb-1">
+          <strong class="${fb.titleColor}">${fb.badge} (Option ${selected})</strong>
+        </div>
+        <p class="text-slate-800 leading-relaxed">${fb.text}</p>
+      `;
+      fbBox.classList.remove('hidden');
+
+      showToast(`Selected Option ${selected}. Feedback revealed.`);
+    }
+
+    // Challenge Option Switcher
+    let currentChallengeOpt = 1;
+    const challengeMeta = {
+      1: {
+        name: "Option 1: Colour Theory in Digital Design",
+        learners: "2nd-year undergraduate students in Graphic Design, Web UX, or Digital Media.",
+        about: "An interactive digital colour palette tester with hue, saturation, and lightness sliders, live button preview, and a simulated bright sunlight / colour-blindness toggle filter.",
+        friction: "Students realise that aesthetically pleasing colours fail under bright sunlight or colour blindness. The simulation causes them to fail WCAG contrast checks when adjusting hue sliders.",
+        postTask: "Adjust their palette until it passes WCAG AA contrast, and write 3 verifiable engineering requirements for their mobile app interface."
+      },
+      2: {
+        name: "Option 2: Event Budget Planning",
+        learners: "Undergraduate Event Management, Tourism, or Business Administration students.",
+        about: "A dynamic budget simulator for a 300-person campus festival with attendee counter, fixed vs. variable cost toggles, and unexpected scenario cards.",
+        friction: "Students allocate 100% of their funds with 0% contingency buffer; when a surprise tent rental card triggers, their budget goes immediately into deficit.",
+        postTask: "Calculate the exact breakeven point per attendee and rewrite the commercial proposal with a mandatory 15% emergency contingency reserve."
+      },
+      3: {
+        name: "Option 3: Three-Point Studio Lighting",
+        learners: "Media Production, Film, and Digital Journalism students.",
+        about: "A virtual studio mockup with Key, Fill, and Hair light sliders (intensity, angle, colour temperature) illuminating an on-screen subject portrait.",
+        friction: "Turning off or maxing the Fill light creates unflattering harsh shadows or flattens depth into a washed-out, lifeless 2D passport-photo look.",
+        postTask: "Document the key-to-fill ratio used and explain in 3 verifiable criteria how their lighting setup achieves the assigned dramatic scene mood."
+      }
+    };
+
+    function selectChallengeOption(optNum) {
+      currentChallengeOpt = optNum;
+
+      [1, 2, 3].forEach(num => {
+        const btn = document.getElementById(`btnChallengeOpt${num}`);
+        const content = document.getElementById(`contentChallengeOpt${num}`);
+        const accentBar = document.getElementById(`accentBarOpt${num}`);
+
+        if (num === optNum) {
+          if (num === 1) btn.className = "p-5 text-left rounded-xl border-2 border-indigo-600 bg-indigo-50/70 text-slate-900 transition flex flex-col justify-between shadow-sm relative overflow-hidden";
+          if (num === 2) btn.className = "p-5 text-left rounded-xl border-2 border-emerald-600 bg-emerald-50/70 text-slate-900 transition flex flex-col justify-between shadow-sm relative overflow-hidden";
+          if (num === 3) btn.className = "p-5 text-left rounded-xl border-2 border-amber-500 bg-amber-50/70 text-slate-900 transition flex flex-col justify-between shadow-sm relative overflow-hidden";
+          if (accentBar) accentBar.classList.remove('opacity-0');
+          content.classList.remove('hidden');
+        } else {
+          btn.className = "p-5 text-left rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 text-slate-700 transition flex flex-col justify-between relative overflow-hidden";
+          if (accentBar) accentBar.classList.add('opacity-0');
+          content.classList.add('hidden');
+        }
+      });
+
+      document.getElementById('currentSequenceBanner').textContent = challengeMeta[optNum].name;
+      renderStickyNotes();
+      showToast(`Selected ${challengeMeta[optNum].name}`);
+    }
+
+    // Streamlined Sticky Notes Storage & Management
+    const defaultStickyNotes = [
+      {
+        id: 1,
+        opt: 1,
+        author: "Group 1",
+        text: "Students choose trendy light-grey on white. It looks clean indoors, but completely fails under sunlight. Activity: Slider for outdoor glare."
+      },
+      {
+        id: 2,
+        opt: 1,
+        author: "Group 4",
+        text: "Outcome: Students calibrate button contrast to WCAG 4.5:1 before designing their final assessment page."
+      },
+      {
+        id: 3,
+        opt: 2,
+        author: "Group 2",
+        text: "Outcome: Students experience a surprise rain marquee bill that wipes out their budget without a 15% contingency buffer."
+      },
+      {
+        id: 4,
+        opt: 3,
+        author: "Group 5",
+        text: "Outcome: Students understand key-to-fill lighting ratios by toggling a fill dimmer to see unflattering harsh shadows disappear."
+      }
+    ];
+
+    let stickyNotes = [];
+    try {
+      const saved = localStorage.getItem('rmit_challenge_stickies_v2');
+      stickyNotes = saved ? JSON.parse(saved) : defaultStickyNotes;
+    } catch(e) {
+      stickyNotes = defaultStickyNotes;
+    }
+
+    function saveStickyNotes() {
+      try {
+        localStorage.setItem('rmit_challenge_stickies_v2', JSON.stringify(stickyNotes));
+      } catch(e) {}
+    }
+
+    function addStickyNote() {
+      const text = document.getElementById('stickyText').value.trim();
+      const author = document.getElementById('stickyAuthor').value.trim() || 'Our Group';
+
+      if (!text) {
+        showToast('Please type an outcome or idea for your note.');
+        return;
+      }
+
+      const newNote = {
+        id: Date.now(),
+        opt: currentChallengeOpt,
+        author,
+        text
+      };
+
+      stickyNotes.unshift(newNote);
+      saveStickyNotes();
+      renderStickyNotes();
+
+      document.getElementById('stickyText').value = '';
+      showToast('Note added to the board!');
+    }
+
+    function deleteStickyNote(id) {
+      stickyNotes = stickyNotes.filter(n => n.id !== id);
+      saveStickyNotes();
+      renderStickyNotes();
+      showToast('Note removed.');
+    }
+
+    function sendStickyToPrompt(id) {
+      const note = stickyNotes.find(n => n.id === id);
+      if (!note) return;
+
+      const meta = challengeMeta[note.opt] || challengeMeta[currentChallengeOpt];
+      document.getElementById('inputGoalFriction').value = note.text;
+      document.getElementById('inputLearners').value = meta.learners;
+      document.getElementById('inputSimulationAbout').value = meta.about;
+      document.getElementById('inputPostTask').value = meta.postTask;
+
+      switchTab('studio');
+      generateCleanPrompt();
+      showToast('Transferred note to AI Prompt Tool!');
+    }
+
+    function transferActiveNotesToStudio() {
+      const relevant = stickyNotes.filter(n => n.opt === currentChallengeOpt);
+      const meta = challengeMeta[currentChallengeOpt];
+
+      document.getElementById('inputGoalFriction').value = relevant.length > 0 ? relevant[0].text : meta.friction;
+      document.getElementById('inputLearners').value = meta.learners;
+      document.getElementById('inputSimulationAbout').value = meta.about;
+      document.getElementById('inputPostTask').value = meta.postTask;
+
+      switchTab('studio');
+      generateCleanPrompt();
+      showToast('Transferred group ideas to AI Prompt Tool!');
+    }
+
+    function renderStickyNotes() {
+      const container = document.getElementById('stickyNotesGrid');
+      if (!container) return;
+
+      const filtered = stickyNotes.filter(n => n.opt === currentChallengeOpt);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-6 text-center text-slate-400 text-xs sm:text-sm border-2 border-dashed border-slate-200 rounded-xl">
+            No sticky notes for this topic yet. Add your group's outcome above!
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(n => `
+        <div class="p-4 rounded-xl border border-amber-200 bg-amber-50/90 text-amber-950 flex flex-col justify-between space-y-2.5 shadow-sm transition hover:-translate-y-0.5">
+          <div class="flex items-center justify-between text-[11px] font-bold border-b border-amber-200 pb-1 text-[#000054]">
+            <span class="uppercase tracking-wider">${escapeHtml(n.author)}</span>
+            <button onclick="deleteStickyNote(${n.id})" class="text-slate-400 hover:text-red-700 font-bold text-xs" title="Delete note">✕</button>
+          </div>
+          <p class="text-xs sm:text-sm leading-relaxed text-slate-800 flex-1">${escapeHtml(n.text)}</p>
+          <div class="pt-1 border-t border-amber-200 flex justify-end">
+            <button onclick="sendStickyToPrompt(${n.id})" class="text-xs font-bold text-[#000054] underline hover:opacity-80 flex items-center gap-1">
+              <span>Send to Prompt</span> <span>&rarr;</span>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Measurable Requirements Verification
+    function handleReqChange(selectEl) {
+      const selectedValue = selectEl.value;
+      const correctAnswer = selectEl.getAttribute('data-correct');
+      const row = selectEl.closest('tr');
+      const container = selectEl.closest('.dropdown-container');
+      const icon = container.querySelector('.feedback-icon');
+      const feedbackCell = row.querySelector('.feedback-cell');
+      const feedbackMsg = feedbackCell.getAttribute('data-feedback');
+
+      row.classList.remove('req-row-correct', 'req-row-incorrect');
+      icon.textContent = '';
+      feedbackCell.textContent = '';
+
+      if (selectedValue !== 'Select') {
+        if (selectedValue === correctAnswer) {
+          row.classList.add('req-row-correct');
+          icon.textContent = '✔';
+          feedbackCell.textContent = feedbackMsg;
+        } else {
+          row.classList.add('req-row-incorrect');
+          icon.textContent = '✖';
+          feedbackCell.textContent = 'Incorrect. Try again!';
+        }
+      }
+    }
+
+    function saveReqAnswers() {
+      document.querySelectorAll('.req-table select').forEach(sel => {
+        localStorage.setItem('rmit_canvas_req_' + sel.id, sel.value);
+      });
+      showToast('Your answers have been saved locally.');
+    }
+
+    function resetReqAnswers() {
+      document.querySelectorAll('.req-table select').forEach(sel => {
+        localStorage.removeItem('rmit_canvas_req_' + sel.id);
+        sel.value = 'Select';
+        handleReqChange(sel);
+      });
+      showToast('Table reset. Ready to try again.');
+    }
+
+    // Prompt Generation (Clean structure, Australian English)
+    function generateCleanPrompt() {
+      const goalFriction = document.getElementById('inputGoalFriction').value.trim() || 
+        "Students realise that client wish lists ('make it fast and modern') fail to capture real human constraints. The simulation introduces deliberate cognitive friction that causes students to pause and observe their own hesitation.";
+
+      const learners = document.getElementById('inputLearners').value.trim() || 
+        "Undergraduate university students in Systems Engineering, UX Design, or Human-Centred Computing.";
+
+      const simAbout = document.getElementById('inputSimulationAbout').value.trim() || 
+        "A campus or public service interactive machine (such as a metro ticket kiosk, library checkout, or hospital check-in terminal) with touch buttons, step-by-step state screen, and card/dispense mechanisms.";
+      
+      const postTask = document.getElementById('inputPostTask').value.trim() || 
+        "Students log the exact moment they hesitated, identify 3 unstated user needs, and translate them into Specific, Measurable, and Verifiable engineering requirements.";
+
+      const prompt = `Act as an expert Educational Technologist and Simulation Software Engineer.
+
+Task:
+Develop a self-contained, single-file interactive web simulation (HTML/CSS/JS) designed as an active learning trigger for university students.
+
+1. Learning Goal & Intentional Cognitive Friction:
+- The simulation must not be a smooth, frictionless demo.
+- Deliberately embed this specific hesitation dilemma:
+  ${goalFriction}
+- The core pedagogical objective is to give students direct experiential evidence of unstated user needs.
+
+2. Target Learners:
+${learners}
+
+3. System & Behaviours to Simulate:
+${simAbout}
+
+4. Post-Simulation Student Task:
+- The simulation serves as raw material for the following follow-up exercise:
+  ${postTask}
+
+Technical Guidelines:
+- Single runnable HTML file using Tailwind CSS CDN and Vanilla JavaScript or React (via UMD).
+- Clean, high-contrast, accessible light-mode interface with a strict white background (#ffffff) across all components.
+- Responsive layout suited for standard browser viewports (desktop and laptop).
+- State-driven display (Idle, Selecting, Processing, Friction Alert, Complete).
+- Include an embedded "Observer Note Box" where students can jot down moments they felt confused or hesitated during the exercise.
+
+Generate the complete, working code now.`;
+
+      document.getElementById('cleanPromptOutput').textContent = prompt;
+    }
+
+    function copyPromptText() {
+      const text = document.getElementById('cleanPromptOutput').textContent;
+      const temp = document.createElement('textarea');
+      temp.value = text;
+      document.body.appendChild(temp);
+      temp.select();
+      try {
+        document.execCommand('copy');
+        showToast('Prompt copied to clipboard! Paste it into Gemini.');
+      } catch (err) {
+        showToast('Please select and copy the text manually.');
+      }
+      document.body.removeChild(temp);
+    }
+
+    // Sequence & Simulation Embedder Drag-and-Drop & Compiler
+    const sequenceTemplates = {
+      1: {
+        title: "Colour Theory in Digital Design",
+        hook: `<div class="mb-6"><h2 class="text-2xl font-bold text-[#000054] mb-2">Colour Theory in Digital Design</h2><p class="text-slate-600 text-sm">Context: You are currently working in design teams to create a mobile app for campus students. Before finalising your high-fidelity user interface, work through this guide to understand how colour choices directly impact user experience and navigation.</p><h3 class="text-lg font-bold text-slate-900 mt-4 mb-2">Why does colour matter?</h3><p class="text-slate-700 leading-relaxed">Have you ever visited a website and immediately felt overwhelmed, or struggled to read light-grey text on a white background? Colour isn't just decoration—it quietly guides how people feel, where they look, and whether an app feels intuitive or exhausting to use.</p></div>`,
+        concept: `<div class="mb-6"><h3 class="text-lg font-bold text-slate-900 mb-2">The Colour Wheel: Harmony &amp; Contrast</h3><p class="text-slate-700 leading-relaxed mb-3">You don't need an art degree to build a great palette. Most everyday choices come down to two basic ideas: Complementary Colours (high contrast, grabs attention for warning badges or primary buttons) and Analogous Colours (calm, cohesive, and easy on the eyes).</p><div class="p-3.5 rounded-lg bg-blue-50 border-l-4 border-[#000054] text-slate-800 text-sm mb-4"><strong>The Catch: Contrast and Legibility:</strong> A combination might look aesthetic to you, but if a student in bright sunlight or someone with colour vision differences can't read it, the design fails.</div></div>`,
+        wrapup: `<div class="mt-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-slate-800 text-sm"><strong class="text-[#000054]">Assessment Task Connection:</strong> In your final assessment, you must submit an accessible mobile app landing page. Test your palette against WCAG AA requirements before finalising your design.</div>`
+      },
+      2: {
+        title: "Event Budget Planning",
+        hook: `<div class="mb-6"><h2 class="text-2xl font-bold text-[#000054] mb-2">Event Budget Planning</h2><p class="text-slate-600 text-sm">Context: Your committee is organising a commercial campus event for 300 attendees. Before pitching your financial plan to the sponsors, review this foundational guide on managing fixed versus variable operational expenses.</p><h3 class="text-lg font-bold text-slate-900 mt-4 mb-2">Where does all the money go?</h3><p class="text-slate-700 leading-relaxed">Organising an event is exciting until the bills arrive. The number-one reason campus festivals run into trouble isn't a lack of great ideas—it's surprise costs that spiral out of control.</p></div>`,
+        concept: `<div class="mb-6"><h3 class="text-lg font-bold text-slate-900 mb-2">Two Buckets: Fixed vs. Variable Costs</h3><p class="text-slate-700 leading-relaxed mb-3">Fixed costs (venue hire, permits, sound gear) stay the same whether 10 or 300 people arrive. Variable costs (catering, drinks, badges) scale up with every attendee.</p><div class="p-3.5 rounded-lg bg-emerald-50 border-l-4 border-emerald-600 text-slate-800 text-sm mb-4"><strong>The Golden Rule: The Contingency Buffer:</strong> Planners always set aside a 10% to 15% rainy-day buffer. If you don't budget for surprises upfront, they come out of your own pocket.</div></div>`,
+        wrapup: `<div class="mt-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-slate-800 text-sm"><strong class="text-[#000054]">Assessment Task Connection:</strong> For your main project, submit a viable commercial budget for 300 attendees that accounts for unexpected vendor cost increases.</div>`
+      },
+      3: {
+        title: "Three-Point Studio Lighting",
+        hook: `<div class="mb-6"><h2 class="text-2xl font-bold text-[#000054] mb-2">Three-Point Studio Lighting</h2><p class="text-slate-600 text-sm">Context: As part of your upcoming digital video assessment, you must light and record an interview subject in the broadcast studio. Learn how to transform flat camera imagery into three-dimensional cinematic depth.</p><h3 class="text-lg font-bold text-slate-900 mt-4 mb-2">Why do smartphone videos look flat?</h3><p class="text-slate-700 leading-relaxed">Cameras flatten a three-dimensional world onto a 2D screen. Lighting is the cinematic craft that reintroduces depth, shape, and emotion.</p></div>`,
+        concept: `<div class="mb-6"><h3 class="text-lg font-bold text-slate-900 mb-2">The Classic Three-Light Recipe</h3><p class="text-slate-700 leading-relaxed mb-3">Professional shoots balance the Key light (hero shape &amp; shadows), Fill light (gentle shadow softener), and Back light / Hair light (separating the subject from the background wall).</p><div class="p-3.5 rounded-lg bg-amber-50 border-l-4 border-amber-500 text-slate-800 text-sm mb-4"><strong>The Catch: Mood and Balance:</strong> Adjusting just one dimmer switch completely changes the story—from an upbeat corporate interview to a moody thriller scene.</div></div>`,
+        wrapup: `<div class="mt-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-slate-800 text-sm"><strong class="text-[#000054]">Assessment Task Connection:</strong> In your studio practical assessment, light a live actor to match your assigned emotional scene script.</div>`
+      }
+    };
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      document.getElementById('simDropzone').classList.add('border-[#000054]', 'bg-blue-50');
+    }
+
+    function handleDragLeave(e) {
+      e.preventDefault();
+      document.getElementById('simDropzone').classList.remove('border-[#000054]', 'bg-blue-50');
+    }
+
+    function handleFileDrop(e) {
+      e.preventDefault();
+      document.getElementById('simDropzone').classList.remove('border-[#000054]', 'bg-blue-50');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        processUploadedFile(e.dataTransfer.files[0]);
+      }
+    }
+
+    function handleFileSelect(e) {
+      if (e.target.files && e.target.files[0]) {
+        processUploadedFile(e.target.files[0]);
+      }
+    }
+
+    function processUploadedFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        document.getElementById('embedSimCode').value = event.target.result;
+        document.getElementById('dropzoneLabel').textContent = `✓ Loaded: ${file.name}`;
+        document.getElementById('dropzoneSubLabel').textContent = `${(file.size / 1024).toFixed(1)} KB - Ready to compile`;
+        compileCompleteSequence();
+        showToast(`Loaded ${file.name} successfully!`);
+      };
+      reader.readAsText(file);
+    }
+
+    // Helper to generate the assembled HTML document with strict white background isolation
+    function generateCompiledDocument() {
+      const optVal = document.getElementById('embedSequenceOption').value;
+      const posVal = document.getElementById('embedPlacementPosition').value;
+      
+      let rawSimCode = document.getElementById('embedSimCode').value.trim();
+      if (!rawSimCode) {
+        rawSimCode = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.tailwindcss.com"><\/script>
+  <style>
+    html, body { background-color: #ffffff !important; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 24px; }
+  </style>
+</head>
+<body class="bg-white" style="background-color: #ffffff !important;">
+  <div style="background-color: #ffffff !important;" class="max-w-xl mx-auto p-8 rounded-xl border-2 border-dashed border-[#000054] text-center space-y-3">
+    <div class="inline-block p-3 rounded-full bg-blue-50 text-[#000054] mb-1">
+      <svg class="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" /></svg>
+    </div>
+    <h3 class="font-bold text-[#000054] text-lg">Interactive Simulation Trigger</h3>
+    <p class="text-slate-600 text-sm">Your bespoke AI-generated simulation will run interactively inside this container with strict white background isolation.</p>
+    <button class="px-5 py-2.5 bg-[#000054] text-white rounded-lg font-bold text-sm hover:bg-[#00003c] transition shadow">Interact with System</button>
+  </div>
+
+  <!-- ==== Phase 0 auto-tracker (injected by deploy tool) ==== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-IEvx56ysu5GhKlOU-a-6jD7rUiY17nM",
+      authDomain: "phase0-activity-analytics.firebaseapp.com",
+      projectId: "phase0-activity-analytics",
+    };
+    const ACTIVITY_ID = "abc";
+    const SEMESTER = "2026S2";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function getAnonId() {
+      let id = localStorage.getItem("phase0_anon_id");
+      if (!id) { id = "anon-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("phase0_anon_id", id); }
+      return id;
+    }
+    const anonId = getAnonId();
+    const sessionStart = Date.now();
+    let interactionCount = 0;
+
+    function sendEvent(eventType, extra) {
+      addDoc(collection(db, "phase0_events"), {
+        activity_id: ACTIVITY_ID, semester: SEMESTER, anon_id: anonId, event_type: eventType,
+        client_timestamp: new Date().toISOString(), server_timestamp: serverTimestamp(),
+        seconds_since_open: Math.round((Date.now() - sessionStart) / 1000), extra: extra || "",
+      }).catch(() => {});
+    }
+
+    sendEvent("open");
+
+    // Generic auto-tracking: explicit data-track wins, else id/name/text is used as the label.
+    document.addEventListener("click", function (e) {
+      const el = e.target.closest("button, a, [role='button'], input[type='submit']");
+      if (!el) return;
+      const label = el.getAttribute("data-track") || el.id || (el.textContent || "").trim().slice(0, 40) || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label);
+    });
+    document.addEventListener("change", function (e) {
+      const el = e.target;
+      if (!(el.tagName === "SELECT" || (el.tagName === "INPUT" && (el.type === "checkbox" || el.type === "radio")))) return;
+      const label = el.getAttribute("data-track") || el.id || el.name || el.tagName;
+      interactionCount++;
+      sendEvent("interaction", label + "=" + el.value);
+    });
+
+    window.addEventListener("beforeunload", function () {
+      sendEvent("close", "total_interactions=" + interactionCount);
+    });
+  </script>
+  
+</body>
+</html>`;
+      }
+
+      // Ensure uploaded simulation code has explicit white background override injected
+      let sanitizedSimCode = rawSimCode;
+      const whiteBgOverride = `<style>
+        html, body { 
+          background-color: #ffffff !important; 
+          background: #ffffff !important; 
+        }
+      </style>`;
+
+      if (sanitizedSimCode.toLowerCase().includes('</head>')) {
+        sanitizedSimCode = sanitizedSimCode.replace(/<\/head>/i, `${whiteBgOverride}</head>`);
+      } else if (sanitizedSimCode.toLowerCase().includes('<body')) {
+        sanitizedSimCode = whiteBgOverride + sanitizedSimCode;
+      } else {
+        // Snippet only: wrap with minimal clean HTML document
+        sanitizedSimCode = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.tailwindcss.com"><\/script>
+  ${whiteBgOverride}
+</head>
+<body style="background-color: #ffffff !important; margin: 0; padding: 16px;">
+  ${sanitizedSimCode}
+</body>
+</html>`;
+      }
+
+      // Escape sanitized code to embed safely into srcdoc
+      const escapedSrcdoc = sanitizedSimCode
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;');
+
+      // Isolated Sandboxed Frame Container with strict white background
+      const simContainer = `
+        <div class="my-8 rounded-xl border border-slate-300 bg-white shadow-sm overflow-hidden" style="background-color: #ffffff !important;">
+          <div class="bg-slate-100/90 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-[#000054] flex items-center gap-1.5">
+              <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#E60028]"></span>
+              <span>Active Learning Trigger (Interactive Simulation)</span>
+            </span>
+            <span class="text-[11px] text-slate-500 font-semibold bg-white border border-slate-200 px-2 py-0.5 rounded">Isolated Sandboxed Environment</span>
+          </div>
+          <div class="p-2 sm:p-4 bg-white" style="background-color: #ffffff !important;">
+            <iframe 
+              srcdoc="${escapedSrcdoc}"
+              class="w-full min-h-[640px] border-0 rounded-lg bg-white block" 
+              style="background-color: #ffffff !important; width: 100%; border: none;"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+              title="Embedded Learning Simulation"
+            ></iframe>
+          </div>
+        </div>
+      `;
+
+      let assembledContent = '';
+      if (optVal === 'custom') {
+        const customText = document.getElementById('embedCustomSeqText').value.trim() || `<h2 class="text-2xl font-bold text-[#000054] mb-2">Custom Learning Sequence</h2><p class="text-slate-700">Explore the concept and interact with the simulation below.</p>`;
+        const customHeader = `
+          <div class="bg-gradient-to-r from-[#000054] to-[#0a1240] p-6 rounded-xl text-white mb-6 border-b-4 border-[#FAC800] shadow-sm flex items-center justify-between">
+            <div>
+              <span class="bg-[#FAC800] text-[#000054] text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">Active Course Sequence</span>
+              <h2 class="text-xl font-bold mt-1 text-white">Custom Topic Draft</h2>
+            </div>
+            <span class="text-xs text-emerald-300 bg-emerald-950/60 border border-emerald-400/40 px-2.5 py-1 rounded font-medium">✓ Integrated</span>
+          </div>
+        `;
+        assembledContent = `${customHeader}<div class="prose max-w-none text-slate-800">${customText}</div>${simContainer}`;
+      } else {
+        const tmpl = sequenceTemplates[optVal];
+        const previewSeqHeader = `
+          <div class="bg-gradient-to-r from-[#000054] to-[#0a1240] p-6 rounded-xl text-white mb-6 border-b-4 border-[#FAC800] shadow-sm flex items-center justify-between">
+            <div>
+              <span class="bg-[#FAC800] text-[#000054] text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">Active Course Sequence</span>
+              <h2 class="text-xl font-bold mt-1 text-white">${tmpl.title}</h2>
+            </div>
+            <span class="text-xs text-emerald-300 bg-emerald-950/60 border border-emerald-400/40 px-2.5 py-1 rounded font-medium">✓ Embedded with Simulation</span>
+          </div>
+        `;
+
+        if (posVal === 'section1') {
+          assembledContent = `${previewSeqHeader}${tmpl.hook}${simContainer}${tmpl.concept}${tmpl.wrapup}`;
+        } else if (posVal === 'section3') {
+          assembledContent = `${previewSeqHeader}${tmpl.hook}${tmpl.concept}${simContainer}${tmpl.wrapup}`;
+        } else {
+          // Default: inside section 2 (core concept)
+          assembledContent = `${previewSeqHeader}${tmpl.hook}${tmpl.concept}${simContainer}${tmpl.wrapup}`;
+        }
+      }
+
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compiled Learning Sequence Preview</title>
+  <script src="https://cdn.tailwindcss.com"><\/script>
+  <style>
+    html, body { 
+      background-color: #ffffff !important; 
+      background: #ffffff !important; 
+      color: #1e293b; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+      margin: 0; 
+      padding: 24px; 
+      font-size: 15px; 
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body style="background-color: #ffffff !important;">
+  <div class="max-w-4xl mx-auto space-y-4">
+    ${assembledContent}
+  </div>
+</body>
+</html>`;
+    }
+
+    function compileCompleteSequence() {
+      const compiledDoc = generateCompiledDocument();
+      const iframe = document.getElementById('compiledPreviewFrame');
+      iframe.srcdoc = compiledDoc;
+    }
+
+    // Opens the complete assembled sequence in an unrestricted new browser tab using a Blob URL
+    function openPreviewInNewTab() {
+      const compiledDoc = generateCompiledDocument();
+      const blob = new Blob([compiledDoc], { type: 'text/html;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+      const newWin = window.open(blobUrl, '_blank');
+      if (!newWin) {
+        showToast('Please allow popups to open the preview in a new tab.');
+      } else {
+        showToast('Opened assembled sequence in a new tab!');
+      }
+    }
+
+    // Accessible Toast Notifications
+    function showToast(msg) {
+      const container = document.getElementById('toastBox');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = "bg-[#000054] text-white text-xs sm:text-sm px-4 py-3 rounded-lg shadow-lg border-l-4 border-l-[#E60028] pointer-events-auto transition-all duration-200 transform translate-y-2 opacity-0";
+      toast.textContent = msg;
+
+      container.appendChild(toast);
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-1');
+        setTimeout(() => {
+          if (toast.parentElement) toast.parentElement.removeChild(toast);
+        }, 200);
+      }, 3000);
+    }
+
+    // Initialize State
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.req-table select').forEach(sel => {
+        const saved = localStorage.getItem('rmit_canvas_req_' + sel.id);
+        if (saved) {
+          sel.value = saved;
+          handleReqChange(sel);
+        }
+      });
+      generateCleanPrompt();
+      renderStickyNotes();
+      compileCompleteSequence();
+    });
+  </script>
+
+</body>
+</html>
